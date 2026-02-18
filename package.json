@@ -1,0 +1,26 @@
+{
+  "name": "simple-html-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:e2e": "playwright test tests/e2e.spec.js",
+    "test:a11y": "playwright test tests/a11y.spec.js",
+    "test:visual": "playwright test tests/visual.spec.js",
+    "test:integration": "playwright test tests/integration.spec.js",
+    "test:unit": "vitest",
+    "test:ui": "playwright test --ui"
+  },
+  "vitest": {
+    "environment": "jsdom",
+    "setupFiles": []
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.8.6",
+    "@playwright/test": "^1.49.1",
+    "http-server": "^14.1.1",
+    "jsdom": "^24.0.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Simple HTML App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="#">
+        <span aria-hidden="true">⬢</span>
+        Simple App
+      </a>
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </nav>
+      <button id="theme-toggle" class="ghost-button" type="button" aria-pressed="false">
+        Toggle theme
+      </button>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Welcome</p>
+          <h1 id="hero-title">A simple HTML web app</h1>
+          <p class="subtitle">
+            This page is intentionally minimal so the automated tests can verify
+            visual changes, accessibility, and interactions.
+          </p>
+          <div class="actions">
+            <button id="cta-button" class="primary-button" type="button">
+              Run demo action
+            </button>
+            <p id="status" role="status" aria-live="polite">Ready.</p>
+          </div>
+        </div>
+        <div class="card" role="img" aria-label="Abstract illustration">
+          <span class="card-accent"></span>
+          <span class="card-content">Visual card</span>
+        </div>
+      </section>
+
+      <section id="features" class="features" aria-labelledby="features-title">
+        <h2 id="features-title">Features</h2>
+        <div class="feature-grid">
+          <article>
+            <h3>Accessible layout</h3>
+            <p>Semantic HTML with clear labeling.</p>
+          </article>
+          <article>
+            <h3>Test-friendly UI</h3>
+            <p>Stable selectors for automation.</p>
+          </article>
+          <article>
+            <h3>Visual regression</h3>
+            <p>Snapshot-friendly visuals.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="about" class="about" aria-labelledby="about-title">
+        <h2 id="about-title">About</h2>
+        <p>
+          The demo button updates the status message so the end-to-end test can
+          assert user interactions.
+        </p>
+      </section>
+
+      <section id="contact" class="contact" aria-labelledby="contact-title">
+        <h2 id="contact-title">Contact</h2>
+        <form class="contact-form" aria-describedby="contact-help">
+          <label>
+            Email
+            <input id="email" name="email" type="email" placeholder="name@example.com" required />
+          </label>
+          <label>
+            Message
+            <textarea id="message" name="message" rows="3" required></textarea>
+          </label>
+          <button class="secondary-button" type="submit">Send message</button>
+          <p id="contact-help" class="help-text">We reply within 24 hours.</p>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <small>© 2026 Simple HTML App</small>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
