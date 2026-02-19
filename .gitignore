@@ -1,0 +1,11 @@
+# Node modules
+node_modules/
+
+# Playwright browser binaries
+node_modules/.playwright/
+
+# Optional: VS Code settings
+.vscode/
+
+# Optional: test reports
+test-results/
