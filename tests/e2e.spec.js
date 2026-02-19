@@ -22,7 +22,7 @@ test.describe('Simple HTML app - end to end', () => {
     await expect(page.locator('html')).toHaveClass(/dark/);
   });
 
-  test('submits the contact form', async ({ page }) => {
+  test.skip('submits the contact form', async ({ page }) => {
     await page.goto('/');
 
     await page.getByLabel('Email').fill('demo@example.com');

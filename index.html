@@ -8,7 +8,7 @@
   </head>
   <body>
     <header class="site-header">
-      <a class="logo" href="#">
+      <a class="logo" href="/">
         <span aria-hidden="true">⬢</span>
         Simple App
       </a>
@@ -19,7 +19,12 @@
           <li><a href="#contact">Contact</a></li>
         </ul>
       </nav>
-      <button id="theme-toggle" class="ghost-button" type="button" aria-pressed="false">
+      <button
+        id="theme-toggle"
+        class="ghost-button"
+        type="button"
+        aria-pressed="false"
+      >
         Toggle theme
       </button>
     </header>
@@ -76,8 +81,34 @@
         <h2 id="contact-title">Contact</h2>
         <form class="contact-form" aria-describedby="contact-help">
           <label>
+            First name
+            <input
+              id="first-name"
+              name="firstName"
+              type="text"
+              placeholder="First name"
+              required
+            />
+          </label>
+          <label>
+            Last name
+            <input
+              id="last-name"
+              name="lastName"
+              type="text"
+              placeholder="Last name"
+              required
+            />
+          </label>
+          <label>
             Email
-            <input id="email" name="email" type="email" placeholder="name@example.com" required />
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="name@example.com"
+              required
+            />
           </label>
           <label>
             Message

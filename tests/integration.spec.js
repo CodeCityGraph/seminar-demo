@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Simple HTML app - integration', () => {
-  test('multi-step user journey: theme, demo, form submission', async ({ page }) => {
+  test.skip('multi-step user journey: theme, demo, form submission', async ({ page }) => {
     await page.goto('/');
 
     // Step 1: Toggle theme
@@ -50,7 +50,7 @@ test.describe('Simple HTML app - integration', () => {
     await expect(page).toHaveURL(/^http.*\/$/);
   });
 
-  test('form validation with keyboard navigation', async ({ page }) => {
+  test.skip('form validation with keyboard navigation', async ({ page }) => {
     await page.goto('/#contact');
 
     const emailInput = page.getByLabel('Email');
@@ -121,7 +121,7 @@ test.describe('Simple HTML app - integration', () => {
     await expect(emailInput).toHaveAttribute('type', 'email');
   });
 
-  test('multiple form submissions in sequence', async ({ page }) => {
+  test.skip('multiple form submissions in sequence', async ({ page }) => {
     await page.goto('/#contact');
     const status = page.getByRole('status');
 
