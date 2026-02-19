@@ -52,6 +52,12 @@ a {
   z-index: 10;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* reduced gap between toggle and login */
+}
+
 .logo {
   font-weight: 700;
   display: inline-flex;
@@ -182,6 +188,27 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+/* Auth grid and divider */
+#auth .feature-grid.auth-grid {
+  grid-template-columns: 1fr 80px 1fr;
+  align-items: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.auth-divider span {
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+}
+
 .contact-form {
   display: grid;
   gap: 1rem;
@@ -209,6 +236,26 @@ textarea {
 .help-text {
   color: var(--muted);
   margin: 0;
+}
+
+.success-text {
+  color: #15803d;
+  font-weight: 600;
+  min-height: 1.25rem;
+  display: block;
+}
+
+/* Success state for buttons (contrasting) */
+.primary-button.btn-success {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.primary-button {
+  transition: background-color 180ms ease, transform 120ms ease, box-shadow 180ms ease, color 120ms ease, width 120ms ease;
 }
 
 .site-footer {

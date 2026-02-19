@@ -19,14 +19,17 @@
           <li><a href="#contact">Contact</a></li>
         </ul>
       </nav>
-      <button
-        id="theme-toggle"
-        class="ghost-button"
-        type="button"
-        aria-pressed="false"
-      >
-        Toggle theme
-      </button>
+      <div class="header-actions">
+        <button
+          id="theme-toggle"
+          class="ghost-button"
+          type="button"
+          aria-pressed="false"
+        >
+          Toggle theme
+        </button>
+        <a class="primary-button" href="#auth">Log in / Sign up</a>
+      </div>
     </header>
 
     <main>
@@ -117,6 +120,83 @@
           <button class="secondary-button" type="submit">Send message</button>
           <p id="contact-help" class="help-text">We reply within 24 hours.</p>
         </form>
+      </section>
+
+      <section id="auth" class="contact" aria-labelledby="auth-title">
+        <h2 id="auth-title">Log in / Sign up</h2>
+
+        <div class="feature-grid auth-grid">
+          <div>
+            <h3>Log in</h3>
+            <form class="contact-form" id="login-form">
+              <label>
+                Email
+                <input id="login-email" name="email" type="email" required />
+              </label>
+              <label>
+                Password
+                <input
+                  id="login-password"
+                  name="password"
+                  type="password"
+                  required
+                />
+              </label>
+              <p
+                class="help-text success-text"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              ></p>
+              <button class="primary-button" type="submit">Log in</button>
+            </form>
+          </div>
+
+          <div class="auth-divider" aria-hidden="true"><span>OR</span></div>
+
+          <div>
+            <h3>Sign up</h3>
+            <form class="contact-form" id="signup-form">
+              <label>
+                First name
+                <input
+                  id="signup-first"
+                  name="firstName"
+                  type="text"
+                  required
+                />
+              </label>
+              <label>
+                Last name
+                <input id="signup-last" name="lastName" type="text" required />
+              </label>
+              <label>
+                Email
+                <input id="signup-email" name="email" type="email" required />
+              </label>
+              <label>
+                Password
+                <input
+                  id="signup-password"
+                  name="password"
+                  type="password"
+                  required
+                />
+              </label>
+              <p
+                class="help-text success-text"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              ></p>
+              <button class="primary-button" type="submit">Sign up</button>
+            </form>
+          </div>
+        </div>
+
+        <p class="help-text">
+          <a href="/" class="ghost-button">Back to home</a>
+        </p>
       </section>
     </main>
 
