@@ -279,3 +279,39 @@ textarea {
     align-items: flex-start;
   }
 }
+
+/* Modal popup card (centered) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.45);
+  display: grid;
+  place-items: center;
+  z-index: 2000;
+  animation: modal-fade 160ms ease;
+}
+
+.modal-card {
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 1rem;
+  padding: 1.5rem 2.5rem;
+  min-width: 320px;
+  max-width: 90vw;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.modal-card p {
+  margin: 0;
+  font-weight: 600;
+}
+
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
