@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
+    "start:api": "node mock-api.js",
     "test:e2e": "playwright test tests/e2e.spec.js",
     "test:a11y": "playwright test tests/a11y.spec.js",
     "test:visual": "playwright test tests/visual.spec.js",
