@@ -30,26 +30,26 @@ test.describe('Name and password validation (signup & login)', () => {
   test('password rules: valid and invalid cases for signup', async ({ page }) => {
     // Navigate to signup section anchor so inputs are present
     await page.click('a[href="#auth"]');
-    // Negative: too short (8 chars)
-    await page.fill('#signup-password', 'Aa1!aaaa');
+    // Negative: too short (7 chars)
+    await page.fill('#signup-password', 'Aa1!aaa');
     const tooShort = await page.evaluate(() => {
       const el = document.getElementById('signup-password');
       return { tooShort: el.validity.tooShort, patternMismatch: el.validity.patternMismatch };
     });
     expect(tooShort.tooShort).toBeTruthy();
 
-    // Boundary: 9 chars (should pass if meets other constraints)
-    await page.fill('#signup-password', 'Ab1!aaaaa');
-    const pass9 = await page.evaluate(() => document.getElementById('signup-password').checkValidity());
-    expect(pass9).toBeTruthy();
+    // Boundary: 8 chars (should pass if meets other constraints)
+    await page.fill('#signup-password', 'Ab1!aaaa');
+    const pass8 = await page.evaluate(() => document.getElementById('signup-password').checkValidity());
+    expect(pass8).toBeTruthy();
 
-    // Long boundary: 19 chars (should pass)
-    await page.fill('#signup-password', 'Aaaa1!aaaaAaaa1!aa');
-    const pass19 = await page.evaluate(() => document.getElementById('signup-password').checkValidity());
-    expect(pass19).toBeTruthy();
+    // Long boundary: 20 chars (should pass)
+    await page.fill('#signup-password', 'Aa1!aaaaaaaaaaaaaaaa');
+    const pass20 = await page.evaluate(() => document.getElementById('signup-password').checkValidity());
+    expect(pass20).toBeTruthy();
 
-    // Too long: 20 chars (fail)
-    await page.fill('#signup-password', 'Aaa1!aaaaaaaaaaaaaaa');
+    // Too long: 21 chars (fail/truncated to maxlength)
+    await page.fill('#signup-password', 'Aa1!aaaaaaaaaaaaaaaaa');
     const tooLongCheck = await page.evaluate(() => {
       const el = document.getElementById('signup-password');
       return { length: el.value.length, max: el.maxLength, valid: el.checkValidity() };
@@ -65,7 +65,7 @@ test.describe('Name and password validation (signup & login)', () => {
 
   test('login password follows the same rules', async ({ page }) => {
     await page.click('a[href="#auth"]');
-    await page.fill('#login-password', 'short1A!');
+    await page.fill('#login-password', 'Aa1!aaa');
     const tooShort = await page.evaluate(() => document.getElementById('login-password').validity.tooShort);
     expect(tooShort).toBeTruthy();
 

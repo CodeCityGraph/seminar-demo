@@ -39,16 +39,39 @@ const server = http.createServer((req, res) => {
       let parsed = {};
       try { parsed = JSON.parse(body || '{}'); } catch (e) { /* ignore */ }
 
-      // Basic server-side email validation
+      // Basic server-side validation depending on form type
+      const formType = parsed.formType || 'contact';
+      const isAlpha = (s) => typeof s === 'string' && /^[A-Za-z]+$/.test(s);
       const isValidEmail = (em) => {
         if (!em || typeof em !== 'string') return false;
         // simple RFC-lite check
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
       };
 
-      if (!isValidEmail(parsed.email)) {
-        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        return res.end(JSON.stringify({ error: 'invalid email' }));
+      if (formType === 'login') {
+        // For login, only require a valid email and a password
+        if (!isValidEmail(parsed.email)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid email' }));
+        }
+        if (!parsed.password || typeof parsed.password !== 'string' || parsed.password.length < 8) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid password' }));
+        }
+      } else {
+        // contact/signup: require names and a valid email
+        if (!parsed.firstName || !isAlpha(parsed.firstName)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid first name' }));
+        }
+        if (!parsed.lastName || !isAlpha(parsed.lastName)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid last name' }));
+        }
+        if (!isValidEmail(parsed.email)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid email' }));
+        }
       }
 
       if (parsed && parsed.fail500) {

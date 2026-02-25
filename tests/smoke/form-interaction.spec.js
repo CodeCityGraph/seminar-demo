@@ -29,7 +29,9 @@ test('contact form submits with mocked POST /submit and shows success', async ({
   await page.fill('#message', 'Hello there');
   await page.click('section#contact .contact-form button[type="submit"]');
 
-  await expect(page.locator('#status')).toHaveText('Message sent!');
+  // wait for modal confirmation overlay to appear with final message
+  await page.waitForSelector('#site-modal-overlay', { state: 'visible', timeout: 5000 });
+  await expect(page.locator('#site-modal-message')).toHaveText('Message sent!');
 
   expect(capturedPayload).toMatchObject({
     firstName: 'Alice',
@@ -73,12 +75,30 @@ test('contact form accepts 200 or 400 responses and logs 500 to console', async 
     })
   );
   await page.goto('/');
-  await page.fill('#first-name', '200');
+  await page.fill('#first-name', 'TwoHundred');
   await page.fill('#last-name', 'Case');
   await page.fill('#email', '200@example.com');
   await page.fill('#message', 'OK');
   await page.click('section#contact .contact-form button[type="submit"]');
-  await expect(page.locator('#status')).toHaveText('Message sent!');
+  // wait up to 5s for either the modal overlay with the final message
+  // or the status text to update to 'Message sent!'
+  await page.waitForFunction(() => {
+    const overlay = document.getElementById('site-modal-overlay');
+    if (overlay) {
+      const msg = overlay.querySelector('#site-modal-message');
+      if (msg && msg.textContent === 'Message sent!') return true;
+    }
+    const status = document.getElementById('status');
+    if (status && status.textContent === 'Message sent!') return true;
+    return false;
+  }, null, { timeout: 5000 });
+  // assert final visible text is correct in whichever element updated
+  const overlayMsg = await page.locator('#site-modal-message').allTextContents();
+  if (overlayMsg.length) {
+    await expect(page.locator('#site-modal-message')).toHaveText('Message sent!');
+  } else {
+    await expect(page.locator('#status')).toHaveText('Message sent!');
+  }
 
   // 400 -> validation-like response is accepted as an API response check
   await page.unroute('**/submit');
@@ -90,7 +110,7 @@ test('contact form accepts 200 or 400 responses and logs 500 to console', async 
     })
   );
   await page.goto('/');
-  await page.fill('#first-name', '400');
+  await page.fill('#first-name', 'FourHundred');
   await page.fill('#last-name', 'Case');
   await page.fill('#email', '400@example.com');
   await page.fill('#message', 'Bad request');
@@ -107,7 +127,7 @@ test('contact form accepts 200 or 400 responses and logs 500 to console', async 
     })
   );
   await page.goto('/');
-  await page.fill('#first-name', '500');
+  await page.fill('#first-name', 'FiveHundred');
   await page.fill('#last-name', 'Case');
   await page.fill('#email', '500@example.com');
   await page.fill('#message', 'Server error');

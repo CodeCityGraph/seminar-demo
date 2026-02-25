@@ -87,7 +87,7 @@ if (contactForm) {
       } else if (resp.status === 400) {
         const errMsg = respBody && respBody.error ? respBody.error : 'Validation error (400)';
         if (status) status.textContent = 'Validation error (400)';
-        showPopup(`Validation error: ${errMsg}`);
+        showPopup('Validation Error. Please try again.');
       } else if (resp.status === 404) {
         if (status) status.textContent = 'Not found (404)';
         showPopup('Not found (404)');
@@ -127,6 +127,7 @@ if (loginForm) {
     e.preventDefault();
     if (!loginForm.checkValidity()) {
       loginForm.reportValidity();
+      showPopup('Validation Error. Please try again.');
       return;
     }
 
@@ -161,7 +162,7 @@ if (loginForm) {
         } else if (resp.status === 400) {
           const err = body && body.error ? body.error : 'Validation error (400)';
           if (loginMsg) loginMsg.textContent = 'Validation error (400)';
-          showPopup(`Validation error: ${err}`);
+          showPopup('Validation Error. Please try again.');
         } else if (resp.status === 404) {
           if (loginMsg) loginMsg.textContent = 'Not found (404)';
           showPopup('Not found (404)');
@@ -239,7 +240,7 @@ if (signupForm) {
         } else if (resp.status === 400) {
           const err = body && body.error ? body.error : 'Validation error (400)';
           if (signupMsg) signupMsg.textContent = 'Validation error (400)';
-          showPopup(`Validation error: ${err}`);
+          showPopup('Validation Error. Please try again.');
         } else if (resp.status === 404) {
           if (signupMsg) signupMsg.textContent = 'Not found (404)';
           showPopup('Not found (404)');

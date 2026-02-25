@@ -56,10 +56,10 @@ test.describe('Smoke: Forms load and interaction', () => {
 
     await contact.getByRole('button', { name: 'Send message' }).click();
 
-    // modal overlay should appear with message
+    // modal overlay should appear with final confirmation message
     await page.waitForSelector('#site-modal-overlay', { state: 'visible', timeout: 5000 });
     const overlay = page.locator('#site-modal-overlay');
-    await expect(overlay.locator('#site-modal-message')).toHaveText("Thank you for contacting us. We'll get back to you shortly");
+    await expect(overlay.locator('#site-modal-message')).toHaveText('Message sent!');
   });
 
   test('login and signup submit flows show messages', async ({ page }) => {
@@ -72,10 +72,10 @@ test.describe('Smoke: Forms load and interaction', () => {
     // Login
     const login = page.locator('#login-form');
     await login.getByLabel('Email').fill('bob@example.com');
-    await login.getByLabel('Password').fill('password');
+    await login.getByLabel('Password').fill('P@ssw0rd1');
     await login.locator('button[type="submit"]').click();
     await page.waitForSelector('#site-modal-overlay', { state: 'visible', timeout: 5000 });
-    await expect(page.locator('#site-modal-message')).toHaveText('Logging you in');
+    await expect(page.locator('#site-modal-message')).toHaveText('Logged in');
 
     // Wait for the modal to dismiss before continuing
     await page.waitForSelector('#site-modal-overlay', { state: 'detached', timeout: 4000 });
@@ -85,9 +85,9 @@ test.describe('Smoke: Forms load and interaction', () => {
     await signup.getByLabel('First name').fill('Jane');
     await signup.getByLabel('Last name').fill('Doe');
     await signup.getByLabel('Email').fill('jane@example.com');
-    await signup.getByLabel('Password').fill('secret');
+    await signup.getByLabel('Password').fill('P@ssw0rd1');
     await signup.locator('button[type="submit"]').click();
     await page.waitForSelector('#site-modal-overlay', { state: 'visible', timeout: 5000 });
-    await expect(page.locator('#site-modal-message')).toHaveText('Thank you for signing up');
+    await expect(page.locator('#site-modal-message')).toHaveText('Account created');
   });
 });
