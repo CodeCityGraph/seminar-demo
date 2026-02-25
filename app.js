@@ -76,22 +76,35 @@ if (contactForm) {
         body: JSON.stringify(payload),
       });
 
+      // read response body for actionable messages
+      let respBodyText = await resp.text();
+      let respBody = null;
+      try { respBody = JSON.parse(respBodyText); } catch (e) { /* not JSON */ }
+
       if (resp.status === 200) {
         if (status) status.textContent = 'Message sent!';
+        showPopup('Message sent!');
       } else if (resp.status === 400) {
+        const errMsg = respBody && respBody.error ? respBody.error : 'Validation error (400)';
         if (status) status.textContent = 'Validation error (400)';
+        showPopup(`Validation error: ${errMsg}`);
       } else if (resp.status === 404) {
         if (status) status.textContent = 'Not found (404)';
+        showPopup('Not found (404)');
       } else if (resp.status === 500) {
         if (status) status.textContent = 'Server error (500)';
+        showPopup('Server error (500)');
       } else {
-        if (status) status.textContent = `Response: ${resp.status}`;
+        const msg = `Response: ${resp.status}`;
+        if (status) status.textContent = msg;
+        showPopup(msg);
       }
 
       // Keep response visible in DevTools network as well
-      console.log('Submit response', resp.status, await resp.text());
+      console.log('Submit response', resp.status, respBodyText);
     } catch (err) {
       if (status) status.textContent = 'Network error';
+      showPopup('Network error — please check your connection');
       console.error(err);
     }
   });
@@ -112,7 +125,6 @@ if (loginForm) {
 
   loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    showPopup('Logging you in');
     if (!loginForm.checkValidity()) {
       loginForm.reportValidity();
       return;
@@ -136,25 +148,35 @@ if (loginForm) {
       body: JSON.stringify(payload),
     })
       .then(async (resp) => {
+        const text = await resp.text();
+        let body = null;
+        try { body = JSON.parse(text); } catch (e) { /* ignore */ }
         if (resp.status === 200) {
           if (loginMsg) loginMsg.textContent = 'Logged in';
           if (submitBtn) {
             submitBtn.textContent = 'Logged in';
             submitBtn.classList.add('btn-success');
           }
+          showPopup('Logged in');
         } else if (resp.status === 400) {
+          const err = body && body.error ? body.error : 'Validation error (400)';
           if (loginMsg) loginMsg.textContent = 'Validation error (400)';
+          showPopup(`Validation error: ${err}`);
         } else if (resp.status === 404) {
           if (loginMsg) loginMsg.textContent = 'Not found (404)';
+          showPopup('Not found (404)');
         } else if (resp.status === 500) {
           if (loginMsg) loginMsg.textContent = 'Server error (500)';
+          showPopup('Server error (500)');
         } else {
           if (loginMsg) loginMsg.textContent = `Response: ${resp.status}`;
+          showPopup(`Response: ${resp.status}`);
         }
-        console.log('Login response', resp.status, await resp.text());
+        console.log('Login response', resp.status, text);
       })
       .catch((err) => {
         if (loginMsg) loginMsg.textContent = 'Network error';
+        showPopup('Network error — please check your connection');
         console.error(err);
       })
       .finally(() => {
@@ -182,7 +204,6 @@ if (signupForm) {
 
   signupForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    showPopup('Thank you for signing up');
     if (!signupForm.checkValidity()) {
       signupForm.reportValidity();
       return;
@@ -205,25 +226,35 @@ if (signupForm) {
       body: JSON.stringify(payload),
     })
       .then(async (resp) => {
+        const text = await resp.text();
+        let body = null;
+        try { body = JSON.parse(text); } catch (e) { /* ignore */ }
         if (resp.status === 200) {
           if (signupMsg) signupMsg.textContent = 'Account created';
           if (submitBtn) {
             submitBtn.textContent = 'Account created';
             submitBtn.classList.add('btn-success');
           }
+          showPopup('Account created');
         } else if (resp.status === 400) {
+          const err = body && body.error ? body.error : 'Validation error (400)';
           if (signupMsg) signupMsg.textContent = 'Validation error (400)';
+          showPopup(`Validation error: ${err}`);
         } else if (resp.status === 404) {
           if (signupMsg) signupMsg.textContent = 'Not found (404)';
+          showPopup('Not found (404)');
         } else if (resp.status === 500) {
           if (signupMsg) signupMsg.textContent = 'Server error (500)';
+          showPopup('Server error (500)');
         } else {
           if (signupMsg) signupMsg.textContent = `Response: ${resp.status}`;
+          showPopup(`Response: ${resp.status}`);
         }
-        console.log('Signup response', resp.status, await resp.text());
+        console.log('Signup response', resp.status, text);
       })
       .catch((err) => {
         if (signupMsg) signupMsg.textContent = 'Network error';
+        showPopup('Network error — please check your connection');
         console.error(err);
       })
       .finally(() => {

@@ -39,6 +39,18 @@ const server = http.createServer((req, res) => {
       let parsed = {};
       try { parsed = JSON.parse(body || '{}'); } catch (e) { /* ignore */ }
 
+      // Basic server-side email validation
+      const isValidEmail = (em) => {
+        if (!em || typeof em !== 'string') return false;
+        // simple RFC-lite check
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
+      };
+
+      if (!isValidEmail(parsed.email)) {
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        return res.end(JSON.stringify({ error: 'invalid email' }));
+      }
+
       if (parsed && parsed.fail500) {
         res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         return res.end(JSON.stringify({ error: 'server error' }));
