@@ -47,19 +47,43 @@ const server = http.createServer((req, res) => {
         // simple RFC-lite check
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
       };
+      const isValidPassword = (pw) => {
+        if (!pw || typeof pw !== 'string') return false;
+        if (pw.length < 8 || pw.length > 20) return false;
+        // must include lower, upper, and special char
+        return /[a-z]/.test(pw) && /[A-Z]/.test(pw) && /[^A-Za-z0-9]/.test(pw);
+      };
 
       if (formType === 'login') {
-        // For login, only require a valid email and a password
+        // For login, require a valid email and a password meeting constraints
         if (!isValidEmail(parsed.email)) {
           res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
           return res.end(JSON.stringify({ error: 'invalid email' }));
         }
-        if (!parsed.password || typeof parsed.password !== 'string' || parsed.password.length < 8) {
+        if (!isValidPassword(parsed.password)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid password' }));
+        }
+      } else if (formType === 'signup') {
+        // signup: require alpha names, valid email and password constraints
+        if (!parsed.firstName || !isAlpha(parsed.firstName)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid first name' }));
+        }
+        if (!parsed.lastName || !isAlpha(parsed.lastName)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid last name' }));
+        }
+        if (!isValidEmail(parsed.email)) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          return res.end(JSON.stringify({ error: 'invalid email' }));
+        }
+        if (!isValidPassword(parsed.password)) {
           res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
           return res.end(JSON.stringify({ error: 'invalid password' }));
         }
       } else {
-        // contact/signup: require names and a valid email
+        // contact: require names and a valid email (no password)
         if (!parsed.firstName || !isAlpha(parsed.firstName)) {
           res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
           return res.end(JSON.stringify({ error: 'invalid first name' }));
