@@ -80,6 +80,11 @@ a {
   font-size: 0.95rem;
 }
 
+:is(a, button, input, textarea):focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
 .ghost-button {
   background: transparent;
   border-color: var(--border);
