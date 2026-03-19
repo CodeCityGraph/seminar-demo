@@ -25,7 +25,7 @@ test.describe('Login validation (server + UI)', () => {
       test(c.name, async ({ page }) => {
           // For negative cases we may be blocked by client-side validation; use direct POST to test server-side validation.
           if (c.expectedStatus === 400) {
-            const resp = await page.request.post('http://127.0.0.1:3000/submit', {
+            const resp = await page.request.post('/submit', {
               data: JSON.stringify({ ...c.payload, formType: 'login' }),
               headers: { 'Content-Type': 'application/json' },
             });
@@ -52,7 +52,7 @@ test.describe('Login validation (server + UI)', () => {
         await page.fill('#login-email', 'user@example.com');
 
         // Use direct requests to exercise server-side validation for boundary conditions
-        const make = async (pw) => await page.request.post('http://127.0.0.1:3000/submit', {
+        const make = async (pw) => await page.request.post('/submit', {
           data: JSON.stringify({ email: 'user@example.com', password: pw, formType: 'login' }),
           headers: { 'Content-Type': 'application/json' },
         });

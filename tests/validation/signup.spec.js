@@ -56,7 +56,7 @@ test.describe('Signup validation (server + UI)', () => {
         await page.fill('#signup-last', 'Smith');
         await page.fill('#signup-email', 'alice@example.com');
         // Use direct requests to exercise server-side validation for boundary conditions
-        const make = async (pw) => await page.request.post('http://127.0.0.1:3000/submit', {
+        const make = async (pw) => await page.request.post('/submit', {
           data: JSON.stringify({ firstName: 'Alice', lastName: 'Smith', email: 'alice@example.com', password: pw, formType: 'signup' }),
           headers: { 'Content-Type': 'application/json' },
         });
