@@ -28,7 +28,7 @@ jobs:
         id: deploy_preview
         run: |
           # Captures the unique preview URL from the CLI output
-          URL=$(npx vercel deploy --token=${{ secrets.VERCEL_TOKEN }})
+          URL=$(npx vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }})
           echo "PREVIEW_URL=$URL" >> $GITHUB_ENV
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -48,6 +48,7 @@ jobs:
         uses: actions/ai-inference@v1
         with:
           model: gpt-4o
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             The Playwright tests failed on the 'demo-test-2' branch. 
             The Preview URL was: ${{ env.PREVIEW_URL }}
@@ -57,7 +58,7 @@ jobs:
       # 4. If tests PASS, promote this exact build to Production
       - name: Promote to Production
         if: success()
-        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
