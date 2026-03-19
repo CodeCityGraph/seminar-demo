@@ -48,7 +48,7 @@ jobs:
         uses: actions/ai-inference@v1
         with:
           model: gpt-4o
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             The Playwright tests failed on the 'demo-test-2' branch. 
             The Preview URL was: ${{ env.PREVIEW_URL }}
