@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const localBaseUrl = 'http://127.0.0.1:3000';
+const playwrightBaseUrl = process.env.BASE_URL || localBaseUrl;
+const useExternalServer = Boolean(process.env.BASE_URL);
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -12,18 +16,20 @@ export default defineConfig({
   },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: playwrightBaseUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     viewport: { width: 1280, height: 720 },
   },
-  webServer: {
-    command: 'npx http-server . -p 4173 -c-1 --silent',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: useExternalServer
+    ? undefined
+    : {
+        command: 'node mock-api.js',
+        url: localBaseUrl,
+        reuseExistingServer: true,
+        timeout: 60_000,
+      },
   projects: [
     {
       name: 'chromium',

@@ -10,3 +10,5 @@ node_modules/.playwright/
 # Test reports
 playwright-report/
 test-results/
+.vercel
+.env*.local
