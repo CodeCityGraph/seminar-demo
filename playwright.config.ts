@@ -8,6 +8,7 @@ const useExternalServer = Boolean(process.env.PREVIEW_URL);
 
 export default defineConfig({
   testDir: './tests',
+  testIgnore: ['manual/**', 'visual/**', 'visual.spec.js-snapshots/**'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

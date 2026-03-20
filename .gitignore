@@ -10,6 +10,9 @@ node_modules/.playwright/
 # Test reports
 playwright-report/
 test-results/
+tests/manual/
+tests/visual/
+tests/visual.spec.js-snapshots/
 .vercel
 .env*.local
 
