@@ -12,3 +12,5 @@ playwright-report/
 test-results/
 .vercel
 .env*.local
+
+mock-api.js

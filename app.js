@@ -104,7 +104,7 @@ if (contactForm) {
     payload.formType = 'contact';
 
     try {
-      const resp = await fetch('http://localhost:3000/submit', {
+      const resp = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -177,7 +177,7 @@ if (loginForm) {
       submitBtn.style.width = `${Math.ceil(rect.width)}px`;
     }
 
-    fetch('http://localhost:3000/submit', {
+    fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -255,7 +255,7 @@ if (signupForm) {
       submitBtn.style.width = `${Math.ceil(rect.width)}px`;
     }
 
-    fetch('http://localhost:3000/submit', {
+    fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
