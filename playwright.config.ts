@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const localBaseUrl = 'http://127.0.0.1:3000';
-const playwrightBaseUrl = process.env.BASE_URL || localBaseUrl;
-const useExternalServer = Boolean(process.env.BASE_URL);
+const playwrightBaseUrl = process.env.PREVIEW_URL || localBaseUrl;
+const useExternalServer = Boolean(process.env.PREVIEW_URL);
 
 export default defineConfig({
   testDir: './tests',

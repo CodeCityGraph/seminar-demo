@@ -31,8 +31,16 @@ jobs:
           URL=$(npx vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }})
           echo "PREVIEW_URL=$URL" >> $GITHUB_ENV
         env:
-          VERCEL_ORG_ID: ${{ secrets.ORGID }}
-          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
+          ORGID: ${{ secrets.ORGID }}
+          PROJECTID: ${{ secrets.PROJECTID }}
+
+
+      - name: Wait for deployment
+        run: npx wait-on --timeout 60000 https-get://${{ env.PREVIEW_URL#https:// }}
+
+      - name: Debug URL
+        run: echo "Preview URL is $PREVIEW_URL"
+          
 
       # 2. Run all tests (UI, Smoke, Unit) against the Preview URL
       - name: Run Playwright Tests (tests folder)
@@ -40,7 +48,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: npx playwright test ./tests
         env:
-          BASE_URL: ${{ env.PREVIEW_URL }}
+          PREVIEW_URL: ${{ env.PREVIEW_URL }}
 
       # 3. If tests FAIL, ask GitHub AI for a fix
       - name: AI Fix Suggestion
@@ -60,5 +68,5 @@ jobs:
         if: success()
         run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.ORGID }}
-          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
+          ORGID: ${{ secrets.ORGID }}
+          PROJECTID: ${{ secrets.PROJECTID }}
