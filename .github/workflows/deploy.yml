@@ -31,8 +31,8 @@ jobs:
           URL=$(npx vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }})
           echo "PREVIEW_URL=$URL" >> $GITHUB_ENV
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
 
       # 2. Run all tests (UI, Smoke, Unit) against the Preview URL
       - name: Run Playwright Tests (tests folder)
@@ -60,5 +60,5 @@ jobs:
         if: success()
         run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
