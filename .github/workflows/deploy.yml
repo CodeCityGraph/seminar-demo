@@ -1,81 +1,99 @@
-name: Deploy Then Test
+name: Dev Test Gate and Main Deploy
 
 on:
   push:
-    branches: [demo-test-2]
+    branches: [dev]
+  workflow_dispatch:
 
 jobs:
-  deploy-test-promote:
+  test-on-dev:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      models: read
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 20
           cache: npm
 
       - name: Install Dependencies
         run: npm ci
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
 
-      - name: Create Vercel Preview
-        id: deploy_preview
+      - name: Generate AI tests with Gemini (optional)
+        env:
+          AI_MODEL_PROVIDER: gemini
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          DEPLOY_OUTPUT=$(npx vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1)
-          echo "$DEPLOY_OUTPUT"
-          URL=$(echo "$DEPLOY_OUTPUT" | grep -Eo 'https://[a-zA-Z0-9.-]+\.vercel\.app' | tail -n1)
-          if [ -z "$URL" ]; then
-            echo "Failed to parse Vercel preview URL from deploy output"
-            exit 1
+          if [ -n "$GEMINI_API_KEY" ]; then
+            npm run ai:generate-tests
+          else
+            echo "GEMINI_API_KEY not set, skipping AI test generation."
           fi
-          echo "PREVIEW_URL=$URL" >> $GITHUB_ENV
-          echo "Using preview URL: $URL"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.ORGID }}
-          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
 
-      - name: Wait for Preview to be Reachable
+      - name: Run Playwright Test Batches
         run: |
-          echo "Waiting for $PREVIEW_URL"
-          for i in {1..30}; do
-            if curl -fsSLI "$PREVIEW_URL" > /dev/null; then
-              echo "Preview is reachable"
-              exit 0
-            fi
-            echo "Attempt $i/30: not ready yet"
-            sleep 10
-          done
-          echo "Timed out waiting for preview URL"
-          exit 1
-        env:
-          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+          if find tests/ai-generated -type f -name '*.spec.*' | grep -q .; then
+            npx playwright test tests/ai-generated
+          else
+            echo "No AI-generated tests detected."
+          fi
+          npx playwright test tests/smoke
+          npx playwright test tests/forms tests/validation
+          npx playwright test tests/theme tests/state tests/e2e
+          npx playwright test tests/accessibility
 
-      - name: Run Playwright Tests Against Preview
-        run: npx playwright test ./tests
-        env:
-          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+  promote-dev-to-main:
+    runs-on: ubuntu-latest
+    needs: test-on-dev
+    if: github.ref == 'refs/heads/dev'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Promote to Production
-        if: success()
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fast-forward main to dev
+        run: |
+          git fetch origin dev main
+          git checkout main
+          git merge --ff-only origin/dev
+          git push origin main
+
+  deploy-main-to-vercel:
+    runs-on: ubuntu-latest
+    needs: promote-dev-to-main
+    if: github.ref == 'refs/heads/dev'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Deploy main to Vercel (production)
         run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.ORGID }}
           VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
-
-      - name: AI Fix Suggestion
-        if: failure()
-        uses: actions/ai-inference@v1
-        with:
-          model: gpt-4o-mini
-          token: ${{ github.token }}
-          prompt: |
-            The Playwright tests failed on the demo-test-2 branch.
-            Please analyze the repository code and suggest a fix for the failing tests.
-            Focus on UI elements or form validations that might be broken.

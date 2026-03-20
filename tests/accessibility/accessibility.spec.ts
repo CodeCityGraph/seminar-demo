@@ -59,11 +59,14 @@ test('supports keyboard navigation through primary interactive elements', async 
 });
 
 test('shows a visible focus indicator for keyboard focus', async ({ page }) => {
-  for (let i = 0; i < 6; i += 1) {
+  const ctaButton = page.getByRole('button', { name: 'Run demo action' });
+  for (let i = 0; i < 20; i += 1) {
     await page.keyboard.press('Tab');
+    if (await ctaButton.evaluate((el) => el === document.activeElement)) break;
   }
+  await expect(ctaButton).toBeFocused();
 
-  const focusStyles = await page.getByRole('button', { name: 'Run demo action' }).evaluate((button) => {
+  const focusStyles = await ctaButton.evaluate((button) => {
     const styles = window.getComputedStyle(button);
     return {
       outlineStyle: styles.outlineStyle,
