@@ -56,7 +56,7 @@ jobs:
         uses: actions/ai-inference@v1
         with:
           model: gpt-4o-mini
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.OPENAI_API_KEY }}
           prompt: |
             The Playwright tests failed on the 'demo-test-2' branch. 
             The Preview URL was: ${{ env.PREVIEW_URL }}
