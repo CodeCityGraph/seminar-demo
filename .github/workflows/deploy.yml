@@ -1,56 +1,54 @@
-name: AI-Powered Gatekeeper Deploy
+name: Deploy Then Test
+
 on:
   push:
-    branches: [ demo-test-2 ] # Triggers only on your specific branch
+    branches: [demo-test-2]
 
 jobs:
-  test-and-deploy:
+  deploy-test-promote:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      models: read # Allows the AI to read your code for fixes
+      models: read
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          
+          cache: npm
+
       - name: Install Dependencies
         run: npm ci
-        
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      # 1. Deploy a private Preview
       - name: Create Vercel Preview
         id: deploy_preview
         run: |
-          # Captures the unique preview URL from the CLI output
           URL=$(npx vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }})
           echo "PREVIEW_URL=$URL" >> $GITHUB_ENV
         env:
-          ORGID: ${{ secrets.ORGID }}
-          PROJECTID: ${{ secrets.PROJECTID }}
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
 
+      - name: Wait for Preview to be Reachable
+        run: npx wait-on --timeout 120000 ${{ env.PREVIEW_URL }}
 
-      - name: Wait for deployment
-        run: npx wait-on --timeout 60000 ${{ env.PREVIEW_URL }}
-
-      - name: Debug URL
-        run: echo "Preview URL is $PREVIEW_URL"
-          
-
-      # 2. Run all tests (UI, Smoke, Unit) against the Preview URL
-      - name: Run Playwright Tests (tests folder)
-        id: run_tests
-        working-directory: ${{ github.workspace }}
+      - name: Run Playwright Tests Against Preview
         run: npx playwright test ./tests
         env:
           PREVIEW_URL: ${{ env.PREVIEW_URL }}
 
-      # 3. If tests FAIL, ask GitHub AI for a fix
+      - name: Promote to Production
+        if: success()
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
+
       - name: AI Fix Suggestion
         if: failure()
         uses: actions/ai-inference@v1
@@ -58,15 +56,6 @@ jobs:
           model: gpt-4o-mini
           token: ${{ secrets.OPENAI_API_KEY }}
           prompt: |
-            The Playwright tests failed on the 'demo-test-2' branch. 
-            The Preview URL was: ${{ env.PREVIEW_URL }}
+            The Playwright tests failed on the demo-test-2 branch.
             Please analyze the repository code and suggest a fix for the failing tests.
             Focus on UI elements or form validations that might be broken.
-
-      # 4. If tests PASS, promote this exact build to Production
-      - name: Promote to Production
-        if: success()
-        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          ORGID: ${{ secrets.ORGID }}
-          PROJECTID: ${{ secrets.PROJECTID }}
