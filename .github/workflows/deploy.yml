@@ -23,7 +23,7 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      # 1. Deploy a private Preview to Vercel
+      # 1. Deploy a private Preview
       - name: Create Vercel Preview
         id: deploy_preview
         run: |
