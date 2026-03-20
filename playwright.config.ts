@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { defineConfig, devices } from '@playwright/test';
 
 const localBaseUrl = 'http://127.0.0.1:3000';
