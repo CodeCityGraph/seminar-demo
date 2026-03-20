@@ -1,0 +1,81 @@
+name: Deploy Then Test
+
+on:
+  push:
+    branches: [demo-test-2]
+
+jobs:
+  deploy-test-promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      models: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Create Vercel Preview
+        id: deploy_preview
+        run: |
+          DEPLOY_OUTPUT=$(npx vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1)
+          echo "$DEPLOY_OUTPUT"
+          URL=$(echo "$DEPLOY_OUTPUT" | grep -Eo 'https://[a-zA-Z0-9.-]+\.vercel\.app' | tail -n1)
+          if [ -z "$URL" ]; then
+            echo "Failed to parse Vercel preview URL from deploy output"
+            exit 1
+          fi
+          echo "PREVIEW_URL=$URL" >> $GITHUB_ENV
+          echo "Using preview URL: $URL"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
+
+      - name: Wait for Preview to be Reachable
+        run: |
+          echo "Waiting for $PREVIEW_URL"
+          for i in {1..30}; do
+            if curl -fsSLI "$PREVIEW_URL" > /dev/null; then
+              echo "Preview is reachable"
+              exit 0
+            fi
+            echo "Attempt $i/30: not ready yet"
+            sleep 10
+          done
+          echo "Timed out waiting for preview URL"
+          exit 1
+        env:
+          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+
+      - name: Run Playwright Tests Against Preview
+        run: npx playwright test ./tests
+        env:
+          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+
+      - name: Promote to Production
+        if: success()
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
+
+      - name: AI Fix Suggestion
+        if: failure()
+        uses: actions/ai-inference@v1
+        with:
+          model: gpt-4o-mini
+          token: ${{ github.token }}
+          prompt: |
+            The Playwright tests failed on the demo-test-2 branch.
+            Please analyze the repository code and suggest a fix for the failing tests.
+            Focus on UI elements or form validations that might be broken.

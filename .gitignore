@@ -1,0 +1,19 @@
+# Node modules
+node_modules/
+
+# Playwright browser binaries
+node_modules/.playwright/
+
+# Optional: VS Code settings
+.vscode/
+
+# Test reports
+playwright-report/
+test-results/
+tests/manual/
+tests/visual/
+tests/visual.spec.js-snapshots/
+.vercel
+.env*.local
+
+mock-api.js

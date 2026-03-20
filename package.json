@@ -1,26 +1,20 @@
 {
-  "name": "simple-html-app",
+  "name": "simple-html-playwright-suite",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "description": "Playwright UI/UX test suite for the Simple HTML App",
   "scripts": {
-    "test": "playwright test",
-    "test:e2e": "playwright test tests/e2e.spec.js",
-    "test:a11y": "playwright test tests/a11y.spec.js",
-    "test:visual": "playwright test tests/visual.spec.js",
-    "test:integration": "playwright test tests/integration.spec.js",
-    "test:unit": "vitest",
-    "test:ui": "playwright test --ui"
-  },
-  "vitest": {
-    "environment": "jsdom",
-    "setupFiles": []
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:update-snapshots": "playwright test tests/visual --update-snapshots",
+    "playwright:install": "playwright install chromium"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.8.6",
-    "@playwright/test": "^1.49.1",
-    "http-server": "^14.1.1",
-    "jsdom": "^24.0.0",
-    "vitest": "^2.1.0"
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^25.5.0",
+    "http-server": "^14.1.1"
   }
 }
