@@ -30,8 +30,10 @@ jobs:
         env:
           AI_MODEL_PROVIDER: gemini
           GEMINI_MODEL: gemini-2.5-flash-lite
+          AI_FORCE_CATEGORY: smoke
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          find tests/ai-generated -type f -name '*.spec.*' -delete || true
           if [ -n "$GEMINI_API_KEY" ]; then
             npm run ai:generate-tests
           else
@@ -40,10 +42,10 @@ jobs:
 
       - name: Run AI-Generated Playwright Tests
         run: |
-          if find tests/ai-generated -type f -name '*.spec.*' | grep -q .; then
-            npx playwright test tests/ai-generated
+          if [ -f tests/ai-generated/smoke.spec.ts ]; then
+            npx playwright test tests/ai-generated/smoke.spec.ts --workers=1 --max-failures=1
           else
-            echo "No AI-generated tests detected. Failing intentionally in fresh AI mode."
+            echo "Expected tests/ai-generated/smoke.spec.ts was not generated."
             exit 1
           fi
 

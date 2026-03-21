@@ -35,6 +35,38 @@ const EXCLUDE_PREFIXES = [
 ];
 const MAX_CHANGED_FILES = Number(process.env.AI_MAX_CHANGED_FILES || 3);
 const MAX_FILE_CHARS = Number(process.env.AI_MAX_FILE_CHARS || 6000);
+const FORCE_CATEGORY = (process.env.AI_FORCE_CATEGORY || 'smoke').toLowerCase();
+
+function buildFallbackSmokeSpec() {
+  return `import { test, expect } from '@playwright/test';
+
+test.describe('Smoke Tests', () => {
+  test('should toggle theme between light and dark', async ({ page }) => {
+    await page.goto('/');
+    const html = page.locator('html');
+    const themeToggle = page.locator('#theme-toggle');
+
+    await expect(themeToggle).toBeVisible();
+    await expect(html).not.toHaveClass(/dark/);
+    await expect(themeToggle).toHaveAttribute('aria-pressed', 'false');
+
+    await themeToggle.click();
+    await expect(html).toHaveClass(/dark/);
+    await expect(themeToggle).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('should cycle status with CTA button', async ({ page }) => {
+    await page.goto('/');
+    const status = page.locator('#status');
+    const cta = page.locator('#cta-button');
+
+    await expect(status).toHaveText('Ready.');
+    await cta.click();
+    await expect(status).toHaveText('Running...');
+  });
+});
+`;
+}
 
 const CATEGORY_RULES = [
   { name: 'theme', testsPath: 'tests/theme', match: [/styles\.css$/, /theme/i] },
@@ -129,6 +161,14 @@ function listExistingTests() {
 }
 
 function inferCategory(changedFiles) {
+  if (FORCE_CATEGORY) {
+    const forced = CATEGORY_RULES.find((rule) => rule.name === FORCE_CATEGORY);
+    if (forced) return forced;
+    if (FORCE_CATEGORY === 'smoke') {
+      return { name: 'smoke', testsPath: 'tests/smoke', match: [] };
+    }
+  }
+
   const haystack = changedFiles.join(' ').toLowerCase();
   for (const rule of CATEGORY_RULES) {
     if (rule.match.some((pattern) => pattern.test(haystack))) {
@@ -136,6 +176,17 @@ function inferCategory(changedFiles) {
     }
   }
   return { name: 'smoke', testsPath: 'tests/smoke', match: [] };
+}
+
+function clearAiGeneratedSpecs() {
+  const aiDir = path.join(ROOT, 'tests', 'ai-generated');
+  if (!fs.existsSync(aiDir)) return;
+  const entries = fs.readdirSync(aiDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!/\.spec\.(js|ts|tsx|jsx)$/.test(entry.name)) continue;
+    fs.rmSync(path.join(aiDir, entry.name), { force: true });
+  }
 }
 
 function buildPrompt(changedFiles, fileContents, existingTests, category) {
@@ -339,6 +390,7 @@ async function callOllama(prompt) {
 
 async function main() {
   ensureDir(RUN_REPORT_DIR);
+  clearAiGeneratedSpecs();
   console.log(`AI provider: ${PROVIDER}`);
   console.log(`AI model: ${MODEL}`);
 
@@ -380,9 +432,9 @@ async function main() {
   const generatedFiles = [];
   for (const item of files) {
     if (!item || typeof item !== 'object') continue;
-    if (typeof item.path !== 'string' || typeof item.content !== 'string') continue;
+    if (typeof item.content !== 'string') continue;
 
-    const normalized = sanitizeOutputPath(item.path);
+    const normalized = sanitizeOutputPath(`tests/ai-generated/${category.name}.spec.ts`);
     const absPath = path.join(ROOT, normalized);
     ensureDir(path.dirname(absPath));
     fs.writeFileSync(absPath, item.content, 'utf8');
@@ -394,6 +446,20 @@ async function main() {
     });
   }
 
+  // Fallback: keep the pipeline demo-friendly even when model returns no files.
+  if (generatedFiles.length === 0) {
+    const fallbackPath = sanitizeOutputPath('tests/ai-generated/smoke.spec.ts');
+    const fallbackContent = buildFallbackSmokeSpec();
+    const fallbackAbs = path.join(ROOT, fallbackPath);
+    ensureDir(path.dirname(fallbackAbs));
+    fs.writeFileSync(fallbackAbs, fallbackContent, 'utf8');
+    generatedFiles.push({
+      path: fallbackPath,
+      reason: 'Fallback template used because AI returned no files.',
+      bytes: Buffer.byteLength(fallbackContent),
+    });
+  }
+
   const manifest = {
     runId: RUN_ID,
     provider: PROVIDER,
@@ -402,7 +468,10 @@ async function main() {
     categoryTestsPath: category.testsPath,
     generatedAt: new Date().toISOString(),
     changedFiles,
-    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    summary:
+      typeof parsed.summary === 'string' && parsed.summary.trim()
+        ? parsed.summary
+        : 'No summary provided by model.',
     generatedFiles,
     reportDir: RUN_REPORT_DIR,
   };
