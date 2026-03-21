@@ -1,0 +1,73 @@
+name: Dev Test Gate and Main Deploy
+
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+jobs:
+  test-on-dev:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate AI tests with Gemini (optional)
+        env:
+          AI_MODEL_PROVIDER: gemini
+          GEMINI_MODEL: gemini-2.5-flash-lite
+          AI_FORCE_CATEGORY: smoke
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          find tests/ai-generated -type f -name '*.spec.*' -delete || true
+          if [ -n "$GEMINI_API_KEY" ]; then
+            npm run ai:generate-tests
+          else
+            echo "GEMINI_API_KEY not set, skipping AI test generation."
+          fi
+
+      - name: Run AI-Generated Playwright Tests
+        run: |
+          if [ -f tests/ai-generated/smoke.spec.ts ]; then
+            npx playwright test tests/ai-generated/smoke.spec.ts --workers=1 --max-failures=1
+          else
+            echo "Expected tests/ai-generated/smoke.spec.ts was not generated."
+            exit 1
+          fi
+
+  deploy-main-to-vercel:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Deploy main to Vercel (production)
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
