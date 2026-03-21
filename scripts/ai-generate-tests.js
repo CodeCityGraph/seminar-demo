@@ -44,15 +44,16 @@ test.describe('Smoke Tests', () => {
   test('should toggle theme between light and dark', async ({ page }) => {
     await page.goto('/');
     const html = page.locator('html');
-    const themeToggle = page.locator('#theme-toggle');
+    const toggle = page.locator('#theme-toggle');
 
-    await expect(themeToggle).toBeVisible();
-    await expect(html).not.toHaveClass(/dark/);
-    await expect(themeToggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(toggle).toBeVisible();
+    const startedDark = await html.evaluate((el) => el.classList.contains('dark'));
+    await expect(toggle).toHaveAttribute('aria-pressed', startedDark ? 'true' : 'false');
 
-    await themeToggle.click();
-    await expect(html).toHaveClass(/dark/);
-    await expect(themeToggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.click();
+    const isDarkAfterFirstToggle = await html.evaluate((el) => el.classList.contains('dark'));
+    expect(isDarkAfterFirstToggle).toBe(!startedDark);
+    await expect(toggle).toHaveAttribute('aria-pressed', startedDark ? 'false' : 'true');
   });
 
   test('should cycle status with CTA button', async ({ page }) => {
@@ -226,6 +227,7 @@ function buildPrompt(changedFiles, fileContents, existingTests, category) {
     '14) For validation checks, use stable assertions such as checkValidity() === false, :invalid state, or app-controlled status text.',
     '15) For theme/class checks, do not rely on getAttribute("class") text operations; use Playwright matchers like expect(locator("html")).toHaveClass(/dark/).',
     '16) Do not use test.use with a custom "route" fixture; if API mocking is needed, call page.route(...) inside each test.',
+    '17) #theme-toggle is a button, not a checkbox. Never use toBeChecked()/not.toBeChecked() for it; use aria-pressed assertions.',
     '',
     'App-specific selector contract:',
     '- Contact form required fields: #first-name, #last-name, #email, #message',
