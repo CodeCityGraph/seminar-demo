@@ -16,7 +16,7 @@
   --surface: #151a2e;
   --text: #f1f5ff;
   --muted: #b2b9d0;
-  --primary: #8b5cf6;
+  --primary: #8c5ff8;
   --primary-contrast: #0b0f1f;
   --border: #242b45;
   --shadow: 0 16px 40px rgba(3, 6, 20, 0.55);
@@ -52,6 +52,12 @@ a {
   z-index: 10;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* reduced gap between toggle and login */
+}
+
 .logo {
   font-weight: 700;
   display: inline-flex;
@@ -78,6 +84,11 @@ a {
   font-weight: 600;
   cursor: pointer;
   font-size: 0.95rem;
+}
+
+:is(a, button, input, textarea):focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
 }
 
 .ghost-button {
@@ -182,6 +193,27 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+/* Auth grid and divider */
+#auth .feature-grid.auth-grid {
+  grid-template-columns: 1fr 80px 1fr;
+  align-items: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.auth-divider span {
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+}
+
 .contact-form {
   display: grid;
   gap: 1rem;
@@ -211,6 +243,26 @@ textarea {
   margin: 0;
 }
 
+.success-text {
+  color: #15803d;
+  font-weight: 600;
+  min-height: 1.25rem;
+  display: block;
+}
+
+/* Success state for buttons (contrasting) */
+.primary-button.btn-success {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.primary-button {
+  transition: background-color 180ms ease, transform 120ms ease, box-shadow 180ms ease, color 120ms ease, width 120ms ease;
+}
+
 .site-footer {
   padding: 1.5rem 4rem 3rem;
   color: var(--muted);
@@ -231,4 +283,40 @@ textarea {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* Modal popup card (centered) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.45);
+  display: grid;
+  place-items: center;
+  z-index: 2000;
+  animation: modal-fade 160ms ease;
+}
+
+.modal-card {
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 1rem;
+  padding: 1.5rem 2.5rem;
+  min-width: 320px;
+  max-width: 90vw;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.modal-card p {
+  margin: 0;
+  font-weight: 600;
+}
+
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
