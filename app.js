@@ -131,7 +131,7 @@ if (contactForm) {
       try { respBody = JSON.parse(respBodyText); } catch (e) { /* not JSON */ }
 
       if (resp.status === 200) {
-        if (status) status.textContent = 'Message sent!';
+        if (status) status.textContent = 'Sent!';
         showPopup('Message sent!');
       } else if (resp.status === 400) {
         const errMsg = respBody && respBody.error ? respBody.error : 'Validation error (400)';
