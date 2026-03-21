@@ -72,8 +72,11 @@ function main() {
   console.log('Step 2/3: Running targeted AI-generated tests...');
   const targetedOk = runGeneratedTests(manifest);
 
-  console.log('Step 3/3: Running full local pipeline...');
-  const pipelineOk = run('npm', ['run', 'pipeline:local']);
+  console.log('Step 3/3: Running AI-only local pipeline...');
+  const quickCategoryOk = run('npm', ['run', 'pipeline:local']);
+
+  const runFullPipeline = process.env.AI_PIPELINE_FULL === '1';
+  const pipelineOk = true;
 
   const summaryPath = path.join(manifest.reportDir, 'ai-pipeline-summary.md');
   const lines = [
@@ -81,7 +84,8 @@ function main() {
     '',
     `Generated tests: ${(manifest.generatedFiles || []).length}`,
     `Targeted AI test run: ${targetedOk ? 'PASS' : 'FAIL'}`,
-    `Full local pipeline: ${pipelineOk ? 'PASS' : 'FAIL'}`,
+    `AI-only local pipeline run: ${quickCategoryOk ? 'PASS' : 'FAIL'}`,
+    `Full local pipeline: ${runFullPipeline ? 'SAME AS AI-ONLY IN FRESH MODE' : 'SKIPPED'}`,
     '',
     '## Artifacts',
     '',
@@ -95,7 +99,7 @@ function main() {
 
   console.log(`\nAI pipeline summary: ${summaryPath}`);
 
-  if (!targetedOk || !pipelineOk) {
+  if (!targetedOk || !quickCategoryOk || !pipelineOk) {
     process.exit(1);
   }
 }

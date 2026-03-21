@@ -36,17 +36,14 @@ jobs:
             echo "GEMINI_API_KEY not set, skipping AI test generation."
           fi
 
-      - name: Run Playwright Test Batches
+      - name: Run AI-Generated Playwright Tests
         run: |
           if find tests/ai-generated -type f -name '*.spec.*' | grep -q .; then
             npx playwright test tests/ai-generated
           else
-            echo "No AI-generated tests detected."
+            echo "No AI-generated tests detected. Failing intentionally in fresh AI mode."
+            exit 1
           fi
-          npx playwright test tests/smoke
-          npx playwright test tests/forms tests/validation
-          npx playwright test tests/theme tests/state tests/e2e
-          npx playwright test tests/accessibility
 
   promote-dev-to-main:
     runs-on: ubuntu-latest

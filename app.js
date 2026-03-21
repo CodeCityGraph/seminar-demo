@@ -6,13 +6,28 @@ const THEME_STORAGE_KEY = 'simple-app-theme';
 const messages = ['Running...', 'Done!', 'Ready.'];
 let messageIndex = -1;
 
+const cycleDemoStatus = () => {
+  if (!status) return;
+  messageIndex = (messageIndex + 1) % messages.length;
+  status.textContent = messages[messageIndex];
+  status.dataset.state = messages[messageIndex].toLowerCase().replace(/\W+/g, '-');
+};
+
 if (ctaButton && status) {
-  ctaButton.addEventListener('click', () => {
-    messageIndex = (messageIndex + 1) % messages.length;
-    status.textContent = messages[messageIndex];
-    status.dataset.state = messages[messageIndex].toLowerCase().replace(/\W+/g, '-');
-  });
+  ctaButton.addEventListener('click', cycleDemoStatus);
 }
+
+document.addEventListener('keydown', (event) => {
+  const target = event.target;
+  const isEditable =
+    target instanceof HTMLElement &&
+    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+  if (isEditable) return;
+  if (event.shiftKey && event.key.toLowerCase() === 'd') {
+    cycleDemoStatus();
+  }
+});
 
 const setTheme = (theme) => {
   const root = document.documentElement;

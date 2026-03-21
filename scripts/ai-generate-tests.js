@@ -13,6 +13,9 @@ const MODEL =
     : process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b';
 const API_KEY = process.env.GEMINI_API_KEY;
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+const AI_REQUEST_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS || 45000);
+const OLLAMA_NUM_PREDICT = Number(process.env.OLLAMA_NUM_PREDICT || 220);
+const MAX_EXISTING_TEST_REFERENCES = Number(process.env.AI_MAX_EXISTING_TESTS || 10);
 const AI_REPORT_ROOT = path.join(ROOT, 'pipeline', 'reports', 'ai');
 const RUN_REPORT_DIR = path.join(AI_REPORT_ROOT, RUN_ID);
 const MANIFEST_PATH = path.join(RUN_REPORT_DIR, 'manifest.json');
@@ -29,6 +32,17 @@ const EXCLUDE_PREFIXES = [
   'test-results/',
   'README',
   'SEMINAR_DEMO_GUIDE',
+];
+const MAX_CHANGED_FILES = Number(process.env.AI_MAX_CHANGED_FILES || 3);
+const MAX_FILE_CHARS = Number(process.env.AI_MAX_FILE_CHARS || 6000);
+
+const CATEGORY_RULES = [
+  { name: 'theme', testsPath: 'tests/theme', match: [/styles\.css$/, /theme/i] },
+  { name: 'state', testsPath: 'tests/state', match: [/app\.js$/, /status/i, /cta/i] },
+  { name: 'validation', testsPath: 'tests/validation', match: [/api\/submit\.js$/, /password/i, /email/i, /auth/i] },
+  { name: 'forms', testsPath: 'tests/forms', match: [/index\.html$/, /contact/i, /form/i] },
+  { name: 'accessibility', testsPath: 'tests/accessibility', match: [/aria/i, /accessib/i, /focus/i] },
+  { name: 'navigation', testsPath: 'tests/e2e', match: [/href/i, /nav/i] },
 ];
 
 function ensureDir(dir) {
@@ -78,7 +92,7 @@ function shouldUseFile(filePath) {
   return fs.existsSync(path.join(ROOT, normalized));
 }
 
-function readFileSafe(relativePath, maxChars = 14000) {
+function readFileSafe(relativePath, maxChars = MAX_FILE_CHARS) {
   const abs = path.join(ROOT, relativePath);
   try {
     const content = fs.readFileSync(abs, 'utf8');
@@ -114,7 +128,22 @@ function listExistingTests() {
   return collected.sort();
 }
 
-function buildPrompt(changedFiles, fileContents, existingTests) {
+function inferCategory(changedFiles) {
+  const haystack = changedFiles.join(' ').toLowerCase();
+  for (const rule of CATEGORY_RULES) {
+    if (rule.match.some((pattern) => pattern.test(haystack))) {
+      return rule;
+    }
+  }
+  return { name: 'smoke', testsPath: 'tests/smoke', match: [] };
+}
+
+function buildPrompt(changedFiles, fileContents, existingTests, category) {
+  const existingSubset = existingTests.slice(0, MAX_EXISTING_TEST_REFERENCES);
+  const categoryRelevant = existingTests
+    .filter((testPath) => testPath.startsWith(`${category.testsPath}/`))
+    .slice(0, MAX_EXISTING_TEST_REFERENCES);
+  const referenceTests = [...categoryRelevant, ...existingSubset].slice(0, MAX_EXISTING_TEST_REFERENCES);
   const changedBlock = changedFiles
     .map((file) => {
       const content = fileContents[file] || '';
@@ -125,14 +154,35 @@ function buildPrompt(changedFiles, fileContents, existingTests) {
   return [
     'You are a senior QA automation engineer for a Playwright project.',
     'Goal: generate NEW or UPDATED tests based on recently changed code.',
+    `Focus category: ${category.name}`,
+    `Reference existing tests path: ${category.testsPath}`,
     '',
     'Rules:',
     '1) Return STRICT JSON only (no markdown, no code fences).',
-    '2) Only write files under tests/ai-generated/.',
+    '2) Write exactly ONE file under tests/ai-generated/',
     '3) Keep tests deterministic and robust (avoid arbitrary timeouts).',
     '4) Use @playwright/test syntax in JS or TS.',
     '5) Prefer behavior-focused assertions tied to changed logic.',
-    '6) If no meaningful tests are needed, return empty files array.',
+    '6) Create at most 3 short tests in a single spec file.',
+    '7) If no meaningful tests are needed, return empty files array.',
+    '8) Reuse existing valid selectors and patterns from current tests.',
+    '9) Do not invent form field names or IDs that are not in provided code.',
+    '10) If asserting successful contact submission, first mock **/api/submit to 200 and fill all required fields with valid values.',
+    '11) Do not assume #cta-button opens a modal; it only cycles status text unless code says otherwise.',
+    '12) Prefer adding/expanding tests near the inferred category behavior.',
+    '',
+    'App-specific selector contract:',
+    '- Contact form required fields: #first-name, #last-name, #email, #message',
+    '- Contact submit button: section#contact .contact-form button[type="submit"]',
+    '- Status element: #status',
+    '- CTA button: #cta-button (cycles status only)',
+    '- Theme toggle: #theme-toggle',
+    '- Login form: #login-form with #login-email and #login-password',
+    '- Signup form: #signup-form with #signup-first, #signup-last, #signup-email, #signup-password',
+    '- Valid names are alphabetic only; invalid names should not be used for success-path submit tests.',
+    '',
+    'Prefer this file naming format:',
+    `- tests/ai-generated/${category.name}.spec.ts`,
     '',
     'JSON schema:',
     '{',
@@ -149,8 +199,8 @@ function buildPrompt(changedFiles, fileContents, existingTests) {
     `Changed files (${changedFiles.length}):`,
     changedFiles.map((f) => `- ${f}`).join('\n') || '- none',
     '',
-    `Existing tests (${existingTests.length}):`,
-    existingTests.map((f) => `- ${f}`).join('\n') || '- none',
+    `Existing tests sample (${referenceTests.length} of ${existingTests.length}):`,
+    referenceTests.map((f) => `- ${f}`).join('\n') || '- none',
     '',
     'Changed file contents:',
     changedBlock || '(none)',
@@ -187,8 +237,13 @@ async function callGemini(prompt) {
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
-  const response = await fetch(url, {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(url, {
     method: 'POST',
+    signal: controller.signal,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -204,8 +259,16 @@ async function callGemini(prompt) {
         responseMimeType: 'application/json',
       },
     }),
-  });
+    });
+  } catch (error) {
+    clearTimeout(timer);
+    if (error && error.name === 'AbortError') {
+      throw new Error(`AI request timed out after ${AI_REQUEST_TIMEOUT_MS}ms (provider=gemini, model=${MODEL}).`);
+    }
+    throw error;
+  }
 
+  clearTimeout(timer);
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`Gemini request failed (${response.status}): ${body}`);
@@ -222,21 +285,38 @@ async function callGemini(prompt) {
 
 async function callOllama(prompt) {
   const url = `${OLLAMA_BASE_URL}/api/generate`;
-  const response = await fetch(url, {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(url, {
     method: 'POST',
+    signal: controller.signal,
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model: MODEL,
       prompt,
+      format: 'json',
       stream: false,
       options: {
         temperature: 0.2,
+        num_predict: OLLAMA_NUM_PREDICT,
       },
     }),
-  });
+    });
+  } catch (error) {
+    clearTimeout(timer);
+    if (error && error.name === 'AbortError') {
+      throw new Error(
+        `AI request timed out after ${AI_REQUEST_TIMEOUT_MS}ms (provider=ollama, model=${MODEL}, num_predict=${OLLAMA_NUM_PREDICT}).`
+      );
+    }
+    throw error;
+  }
 
+  clearTimeout(timer);
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`Ollama request failed (${response.status}): ${body}`);
@@ -253,9 +333,11 @@ async function callOllama(prompt) {
 
 async function main() {
   ensureDir(RUN_REPORT_DIR);
+  console.log(`AI provider: ${PROVIDER}`);
+  console.log(`AI model: ${MODEL}`);
 
   const rawChanged = getChangedFiles();
-  let changedFiles = rawChanged.filter(shouldUseFile);
+  let changedFiles = rawChanged.filter(shouldUseFile).slice(0, MAX_CHANGED_FILES);
 
   if (changedFiles.length === 0) {
     const fallback = ['index.html', 'app.js', 'styles.css', 'api/submit.js'].filter((f) =>
@@ -264,13 +346,14 @@ async function main() {
     changedFiles = fallback;
   }
 
+  const category = inferCategory(changedFiles);
   const fileContents = {};
   for (const file of changedFiles) {
     fileContents[file] = readFileSafe(file);
   }
 
   const existingTests = listExistingTests();
-  const prompt = buildPrompt(changedFiles, fileContents, existingTests);
+  const prompt = buildPrompt(changedFiles, fileContents, existingTests, category);
 
   fs.writeFileSync(path.join(RUN_REPORT_DIR, 'prompt.txt'), prompt, 'utf8');
   fs.writeFileSync(path.join(RUN_REPORT_DIR, 'changed-files.txt'), `${changedFiles.join('\n')}\n`, 'utf8');
@@ -286,7 +369,7 @@ async function main() {
   fs.writeFileSync(path.join(RUN_REPORT_DIR, 'raw-response.txt'), modelRawResponse, 'utf8');
 
   const parsed = JSON.parse(extractJson(modelRawResponse));
-  const files = Array.isArray(parsed.files) ? parsed.files : [];
+  const files = Array.isArray(parsed.files) ? parsed.files.slice(0, 1) : [];
 
   const generatedFiles = [];
   for (const item of files) {
@@ -309,6 +392,8 @@ async function main() {
     runId: RUN_ID,
     provider: PROVIDER,
     model: MODEL,
+    category: category.name,
+    categoryTestsPath: category.testsPath,
     generatedAt: new Date().toISOString(),
     changedFiles,
     summary: typeof parsed.summary === 'string' ? parsed.summary : '',
@@ -325,6 +410,7 @@ async function main() {
     '',
     `Provider: ${PROVIDER}`,
     `Model: ${MODEL}`,
+    `Selected category: ${category.name}`,
     `Changed files considered: ${changedFiles.length}`,
     `Generated test files: ${generatedFiles.length}`,
     '',
@@ -365,6 +451,9 @@ async function main() {
 main().catch((error) => {
   console.error('AI test generation failed:');
   console.error(error.message || error);
+  if (error && error.stack) {
+    console.error(error.stack);
+  }
   if (PROVIDER === 'ollama') {
     console.error('Tip: start Ollama and ensure the model is pulled.');
     console.error('  ollama serve');

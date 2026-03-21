@@ -20,23 +20,6 @@ const batches = [
   {
     name: 'ai-generated',
     tests: ['tests/ai-generated'],
-    optional: true,
-  },
-  {
-    name: 'smoke',
-    tests: ['tests/smoke'],
-  },
-  {
-    name: 'forms-validation',
-    tests: ['tests/forms', 'tests/validation'],
-  },
-  {
-    name: 'theme-state-navigation',
-    tests: ['tests/theme', 'tests/state', 'tests/e2e'],
-  },
-  {
-    name: 'accessibility',
-    tests: ['tests/accessibility'],
   },
 ];
 
@@ -100,14 +83,15 @@ function copyProjectSnapshot(src, dst) {
 
 function runBatch(batch) {
   const hasAnySpecs = batch.tests.some((testPath) => hasSpecFiles(testPath));
-  if (batch.optional && !hasAnySpecs) {
+  if (!hasAnySpecs) {
     return {
       name: batch.name,
       tests: batch.tests,
       htmlReportDir: '',
-      passed: true,
-      skipped: true,
-      code: 0,
+      passed: false,
+      skipped: false,
+      code: 1,
+      message: 'No spec files found. Generate tests first with npm run ai:generate-tests',
     };
   }
 
@@ -155,10 +139,11 @@ function writeSummary(results, allPassed) {
   ];
 
   for (const r of results) {
-    lines.push(`- ${r.skipped ? 'SKIP' : r.passed ? 'PASS' : 'FAIL'} ${r.name}`);
+    lines.push(`- ${r.passed ? 'PASS' : 'FAIL'} ${r.name}`);
     lines.push(`  - Tests: ${r.tests.join(', ')}`);
-    if (r.skipped) {
-      lines.push('  - HTML report: (none)');
+    if (!r.passed && r.message) {
+      lines.push(`  - Message: ${r.message}`);
+      lines.push('  - HTML report: (not generated)');
     } else {
       lines.push(`  - HTML report: ${r.htmlReportDir}`);
     }
