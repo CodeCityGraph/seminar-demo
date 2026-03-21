@@ -29,6 +29,7 @@ jobs:
       - name: Generate AI tests with Gemini (optional)
         env:
           AI_MODEL_PROVIDER: gemini
+          GEMINI_MODEL: gemini-2.5-flash-lite
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ -n "$GEMINI_API_KEY" ]; then
