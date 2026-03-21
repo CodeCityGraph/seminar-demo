@@ -34,12 +34,16 @@ function runGeneratedTests(manifest) {
   fs.mkdirSync(reportDir, { recursive: true });
 
   console.log('\nRunning targeted AI-generated tests...');
-  const ok = run('node', [PLAYWRIGHT_CLI, 'test', ...generatedSpecFiles, '--reporter=line,html'], {
+  const ok = run(
+    'node',
+    [PLAYWRIGHT_CLI, 'test', ...generatedSpecFiles, '--reporter=line,html', '--workers=1', '--max-failures=1'],
+    {
     env: {
       PLAYWRIGHT_HTML_OPEN: 'never',
       PLAYWRIGHT_HTML_REPORT: reportDir,
     },
-  });
+    }
+  );
 
   return ok;
 }

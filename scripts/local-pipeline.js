@@ -98,7 +98,14 @@ function runBatch(batch) {
   const batchHtmlReport = path.join(reportDir, batch.name, 'html');
   ensureDir(batchHtmlReport);
 
-  const args = [PLAYWRIGHT_CLI, 'test', ...batch.tests, '--reporter=line,html'];
+  const args = [
+    PLAYWRIGHT_CLI,
+    'test',
+    ...batch.tests,
+    '--reporter=line,html',
+    '--workers=1',
+    '--max-failures=1',
+  ];
 
   const env = {
     ...process.env,
