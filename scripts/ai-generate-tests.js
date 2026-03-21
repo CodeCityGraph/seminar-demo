@@ -9,7 +9,7 @@ const RUN_ID = new Date().toISOString().replace(/[:.]/g, '-');
 const PROVIDER = (process.env.AI_MODEL_PROVIDER || 'ollama').toLowerCase();
 const MODEL =
   PROVIDER === 'gemini'
-    ? process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+    ? process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'
     : process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b';
 const API_KEY = process.env.GEMINI_API_KEY;
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
@@ -163,7 +163,8 @@ function buildPrompt(changedFiles, fileContents, existingTests, category) {
     '3) Keep tests deterministic and robust (avoid arbitrary timeouts).',
     '4) Use @playwright/test syntax in JS or TS.',
     '5) Prefer behavior-focused assertions tied to changed logic.',
-    '6) Create at most 3 short tests in a single spec file.',
+    '6) Create at most 2 short tests in a single spec file.',
+    '6a) Prefer exactly 2 tests unless only 1 meaningful test exists.',
     '7) If no meaningful tests are needed, return empty files array.',
     '8) Reuse existing valid selectors and patterns from current tests.',
     '9) Do not invent form field names or IDs that are not in provided code.',
@@ -172,6 +173,8 @@ function buildPrompt(changedFiles, fileContents, existingTests, category) {
     '12) Prefer adding/expanding tests near the inferred category behavior.',
     '13) Avoid exact string assertions on browser-native validationMessage text.',
     '14) For validation checks, use stable assertions such as checkValidity() === false, :invalid state, or app-controlled status text.',
+    '15) For theme/class checks, do not rely on getAttribute("class") text operations; use Playwright matchers like expect(locator("html")).toHaveClass(/dark/).',
+    '16) Do not use test.use with a custom "route" fixture; if API mocking is needed, call page.route(...) inside each test.',
     '',
     'App-specific selector contract:',
     '- Contact form required fields: #first-name, #last-name, #email, #message',

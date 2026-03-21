@@ -107,9 +107,50 @@ function showPopup(message, timeout = 2500) {
 // Contact form
 const contactForm = document.querySelector('section#contact .contact-form');
 if (contactForm) {
+  const firstNameInput = contactForm.querySelector('#first-name');
+  const lastNameInput = contactForm.querySelector('#last-name');
+  const emailInput = contactForm.querySelector('#email');
+  const messageInput = contactForm.querySelector('#message');
+
+  const applyCustomValidationMessages = () => {
+    const fields = [firstNameInput, lastNameInput, emailInput, messageInput];
+    for (const field of fields) {
+      if (!field) continue;
+      field.setCustomValidity('');
+      if (field.validity.valid) continue;
+
+      if (field.validity.valueMissing) {
+        field.setCustomValidity('This is a required field.');
+        continue;
+      }
+
+      if (field === firstNameInput && field.validity.patternMismatch) {
+        field.setCustomValidity('First name should contain only alphabetic characters');
+        continue;
+      }
+
+      if (field === lastNameInput && field.validity.patternMismatch) {
+        field.setCustomValidity('Last name should contain only alphabetic characters');
+        continue;
+      }
+
+      if (field === emailInput && field.validity.typeMismatch) {
+        field.setCustomValidity('Enter a valid email address.');
+      }
+    }
+  };
+
+  [firstNameInput, lastNameInput, emailInput, messageInput].forEach((field) => {
+    if (!field) return;
+    field.addEventListener('input', () => {
+      field.setCustomValidity('');
+    });
+  });
+
   contactForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     showPopup("Thank you for contacting us. We'll get back to you shortly");
+    applyCustomValidationMessages();
     if (!contactForm.checkValidity()) {
       contactForm.reportValidity();
       return;
@@ -131,7 +172,7 @@ if (contactForm) {
       try { respBody = JSON.parse(respBodyText); } catch (e) { /* not JSON */ }
 
       if (resp.status === 200) {
-        if (status) status.textContent = 'Sent!';
+        if (status) status.textContent = 'Message sent!';
         showPopup('Message sent!');
       } else if (resp.status === 400) {
         const errMsg = respBody && respBody.error ? respBody.error : 'Validation error (400)';
