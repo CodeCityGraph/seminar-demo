@@ -220,6 +220,21 @@ function extractJson(text) {
   throw new Error('Model response did not contain JSON object.');
 }
 
+function parseModelJson(text) {
+  const candidate = extractJson(text);
+  try {
+    return JSON.parse(candidate);
+  } catch (firstError) {
+    // Common model issue: invalid escape sequences inside code strings.
+    const repaired = candidate.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      throw firstError;
+    }
+  }
+}
+
 function sanitizeOutputPath(filePath) {
   const normalized = filePath.replace(/\\/g, '/').replace(/^\/+/, '');
   if (!normalized.startsWith('tests/ai-generated/')) {
@@ -368,7 +383,7 @@ async function main() {
   }
   fs.writeFileSync(path.join(RUN_REPORT_DIR, 'raw-response.txt'), modelRawResponse, 'utf8');
 
-  const parsed = JSON.parse(extractJson(modelRawResponse));
+  const parsed = parseModelJson(modelRawResponse);
   const files = Array.isArray(parsed.files) ? parsed.files.slice(0, 1) : [];
 
   const generatedFiles = [];
