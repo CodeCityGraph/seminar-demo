@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev
-      - Joseph-Dev-Branck
+      - Main
   workflow_dispatch:
 
 jobs:
