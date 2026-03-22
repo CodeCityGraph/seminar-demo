@@ -3,8 +3,7 @@ name: Security Scan
 on:
   push:
     branches:
-      - dev
-      - Main
+      - Joseph-Dev-Branck
   workflow_dispatch:
 
 jobs:
