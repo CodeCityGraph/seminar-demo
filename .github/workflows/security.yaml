@@ -51,7 +51,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash-lite' }}
         run: |
-          REPORT_FILE="report_json.json"
+          REPORT_FILE="zap-report.json"
           if [ ! -f "$REPORT_FILE" ]; then
             echo "No ZAP JSON report found, skipping AI analysis." >> $GITHUB_STEP_SUMMARY
             exit 0
