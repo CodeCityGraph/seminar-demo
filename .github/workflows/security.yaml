@@ -44,13 +44,52 @@ jobs:
           rules_file_name: '.zap/rules.tsv'
           fail_action: false
           allow_issue_writing: true
-          artifact_name: zap-baseline-report
         continue-on-error: true
 
-      - name: Upload ZAP report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-baseline-report
-          path: report_html.html
-          retention-days: 14
+      - name: AI Remediation Analysis (Gemini)
+        if: always() && env.GEMINI_API_KEY != ''
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash-lite' }}
+        run: |
+          REPORT_FILE="report_json.json"
+          if [ ! -f "$REPORT_FILE" ]; then
+            echo "No ZAP JSON report found, skipping AI analysis." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          # Trim to top 20 alerts to stay within token limits
+          ALERTS=$(node -e "
+            const r = JSON.parse(require('fs').readFileSync('$REPORT_FILE'));
+            const alerts = (r.site || []).flatMap(s => s.alerts || []);
+            const top = alerts
+              .sort((a,b) => Number(a.riskcode) - Number(b.riskcode) * -1)
+              .slice(0, 20)
+              .map(a => ({ name: a.alert, risk: a.riskdesc, desc: a.desc, solution: a.solution }));
+            console.log(JSON.stringify(top));
+          ")
+
+          PROMPT="You are a security expert. Below are the top findings from an OWASP ZAP baseline scan of a Node.js web app. For each finding, provide: 1) a plain-English explanation of the risk, 2) a concrete code-level fix specific to a Node.js/Express app. Be concise.\n\nFindings:\n$ALERTS"
+
+          RESPONSE=$(node -e "
+            const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args)).catch(() => require('https'));
+            async function run() {
+              const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + process.env.GEMINI_MODEL + ':generateContent?key=' + process.env.GEMINI_API_KEY;
+              const res = await globalThis.fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ role: 'user', parts: [{ text: process.env.PROMPT }] }],
+                  generationConfig: { temperature: 0.2 }
+                })
+              });
+              const json = await res.json();
+              const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini.';
+              console.log(text);
+            }
+            run().catch(e => { console.error(e.message); process.exit(1); });
+          " 2>&1) || RESPONSE="Gemini request failed."
+
+          echo "## AI Security Remediation (Gemini)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
