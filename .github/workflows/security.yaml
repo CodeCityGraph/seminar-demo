@@ -5,6 +5,7 @@ on:
     branches:
       - dev
       - Main
+      - Joseph-Dev-Branck
   workflow_dispatch:
 
 jobs:
@@ -28,22 +29,110 @@ jobs:
       - name: Run npm audit (fail on high/critical)
         run: npm audit --audit-level=high
 
-  zap-baseline:
-    name: ZAP Baseline Scan
+  zap-mcp-scan:
+    name: ZAP MCP Security Scan
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
+    env:
+      ZAP_API_KEY: ${{ secrets.ZAP_API_KEY || 'zap-ci-key' }}
+      ZAP_API_URL: http://localhost:8090
+      TARGET_URL: ${{ secrets.PRODUCTION_URL || 'https://seminar-demo.vercel.app' }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: ZAP Baseline Scan against production URL
-        uses: zaproxy/action-baseline@v0.14.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          target: ${{ secrets.PRODUCTION_URL || 'https://seminar-demo.vercel.app' }}
-          rules_file_name: '.zap/rules.tsv'
-          fail_action: false
-          allow_issue_writing: true
+          node-version: 20
+
+      - name: Start ZAP daemon
+        run: |
+          docker run -d --name zap \
+            -p 8090:8090 \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap.sh -daemon \
+            -port 8090 \
+            -host 0.0.0.0 \
+            -config api.key="$ZAP_API_KEY" \
+            -config api.addrs.addr.name=.* \
+            -config api.addrs.addr.enabled=true
+
+      - name: Wait for ZAP API to be ready
+        run: |
+          echo "Waiting for ZAP daemon..."
+          for i in $(seq 1 30); do
+            if curl -sf "http://localhost:8090/JSON/core/view/version/?apikey=$ZAP_API_KEY" > /dev/null; then
+              echo "ZAP is ready after $((i * 2))s"
+              exit 0
+            fi
+            echo "Attempt $i/30 – retrying in 2s..."
+            sleep 2
+          done
+          echo "::error::ZAP daemon did not start in time" && exit 1
+
+      - name: Install ZAP MCP and MCP SDK
+        run: npm install @zaproxy/zap-mcp @modelcontextprotocol/sdk
+
+      - name: Run ZAP MCP scan (spider + passive scan)
+        run: |
+          cat > zap-mcp-scan.cjs << 'SCRIPT'
+          const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+          const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+          const fs = require('fs');
+
+          async function main() {
+            const transport = new StdioClientTransport({
+              command: 'node',
+              args: ['node_modules/@zaproxy/zap-mcp/dist/index.js'],
+              env: {
+                ...process.env,
+                ZAP_API_URL: process.env.ZAP_API_URL,
+                ZAP_API_KEY: process.env.ZAP_API_KEY,
+              },
+            });
+
+            const client = new Client({ name: 'ci-zap-mcp', version: '1.0.0' });
+            await client.connect(transport);
+            console.log('Connected to ZAP MCP server');
+
+            const { tools } = await client.listTools();
+            console.log('Available tools:', tools.map(t => t.name).join(', '));
+
+            console.log(`Spidering ${process.env.TARGET_URL}...`);
+            const spiderResult = await client.callTool({
+              name: 'spider_url',
+              arguments: { url: process.env.TARGET_URL, maxChildren: 10 },
+            });
+            console.log('Spider complete');
+
+            console.log('Retrieving alerts...');
+            const alertsResult = await client.callTool({
+              name: 'get_alerts',
+              arguments: { baseurl: process.env.TARGET_URL },
+            });
+
+            const report = {
+              target: process.env.TARGET_URL,
+              timestamp: new Date().toISOString(),
+              spider: spiderResult.content,
+              alerts: alertsResult.content,
+            };
+
+            fs.writeFileSync('zap-mcp-report.json', JSON.stringify(report, null, 2));
+            const alertCount = Array.isArray(alertsResult.content) ? alertsResult.content.length : 'unknown';
+            console.log(`Scan complete. ${alertCount} alerts written to zap-mcp-report.json`);
+
+            await client.close();
+          }
+
+          main().catch(e => {
+            console.error('ZAP MCP scan error:', e.message);
+            process.exit(1);
+          });
+          SCRIPT
+          node zap-mcp-scan.cjs
         continue-on-error: true
 
       - name: AI Remediation Analysis (Gemini)
@@ -52,30 +141,30 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash-lite' }}
         run: |
-          REPORT_FILE="zap-report.json"
+          REPORT_FILE="zap-mcp-report.json"
           if [ ! -f "$REPORT_FILE" ]; then
-            echo "No ZAP JSON report found, skipping AI analysis." >> $GITHUB_STEP_SUMMARY
+            echo "No ZAP MCP report found, skipping AI analysis." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
           # Trim to top 20 alerts to stay within token limits
-          ALERTS=$(node -e "
+          export ALERTS=$(node -e "
             const r = JSON.parse(require('fs').readFileSync('$REPORT_FILE'));
-            const alerts = (r.site || []).flatMap(s => s.alerts || []);
-            const top = alerts
-              .sort((a,b) => Number(a.riskcode) - Number(b.riskcode) * -1)
+            const raw = Array.isArray(r.alerts) ? r.alerts
+              : (Array.isArray(r.alerts?.content) ? r.alerts.content : []);
+            const top = raw
+              .sort((a,b) => Number(b.riskcode || 0) - Number(a.riskcode || 0))
               .slice(0, 20)
-              .map(a => ({ name: a.alert, risk: a.riskdesc, desc: a.desc, solution: a.solution }));
+              .map(a => ({ name: a.alert || a.name, risk: a.riskdesc || a.risk, desc: a.desc, solution: a.solution }));
             console.log(JSON.stringify(top));
           ")
 
-          PROMPT="You are a security expert. Below are the top findings from an OWASP ZAP baseline scan of a Node.js web app. For each finding, provide: 1) a plain-English explanation of the risk, 2) a concrete code-level fix specific to a Node.js/Express app. Be concise.\n\nFindings:\n$ALERTS"
+          export PROMPT="You are a security expert. Below are the top findings from an OWASP ZAP MCP scan of a Node.js web app. For each finding, provide: 1) a plain-English explanation of the risk, 2) a concrete code-level fix specific to a Node.js/Express app. Be concise.\n\nFindings:\n$ALERTS"
 
           RESPONSE=$(node -e "
-            const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args)).catch(() => require('https'));
             async function run() {
               const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + process.env.GEMINI_MODEL + ':generateContent?key=' + process.env.GEMINI_API_KEY;
-              const res = await globalThis.fetch(url, {
+              const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -90,6 +179,20 @@ jobs:
             run().catch(e => { console.error(e.message); process.exit(1); });
           " 2>&1) || RESPONSE="Gemini request failed."
 
-          echo "## AI Security Remediation (Gemini)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## AI Security Remediation (Gemini)"
+            echo ""
+            echo "$RESPONSE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload ZAP MCP artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-mcp-reports
+          path: zap-mcp-report.json
+          if-no-files-found: ignore
+
+      - name: Stop ZAP daemon
+        if: always()
+        run: docker rm -f zap || true
