@@ -5,7 +5,11 @@ on:
     branches:
       - dev
       - Main
-      - Joseph-Dev_Branck
+  pull_request:
+    branches:
+      - Main
+      - dev
+      - Joseph-Dev-Branck
   workflow_dispatch:
 
 jobs:
@@ -201,3 +205,4 @@ jobs:
       - name: Stop ZAP daemon
         if: always()
         run: docker rm -f zap || true
+
