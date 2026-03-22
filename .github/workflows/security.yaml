@@ -3,7 +3,9 @@ name: Security Scan
 on:
   push:
     branches:
-      - Joseph-Dev-Branck
+      - dev
+      - Main
+      - Joseph-Dev_Branck
   workflow_dispatch:
 
 jobs:
@@ -35,7 +37,7 @@ jobs:
       issues: write
     env:
       ZAP_API_KEY: ${{ secrets.ZAP_API_KEY || 'zap-ci-key' }}
-      ZAP_API_URL: http://localhost:8090
+      ZAP_API_URL: http://127.0.0.1:8090
       TARGET_URL: ${{ secrets.PRODUCTION_URL || 'https://seminar-demo.vercel.app' }}
     steps:
       - uses: actions/checkout@v4
@@ -48,27 +50,31 @@ jobs:
       - name: Start ZAP daemon
         run: |
           docker run -d --name zap \
-            -p 8090:8090 \
+            --network host \
+            -e JAVA_OPTS="-Xmx512m" \
             ghcr.io/zaproxy/zaproxy:stable \
             zap.sh -daemon \
             -port 8090 \
-            -host 0.0.0.0 \
-            -config api.key="$ZAP_API_KEY" \
-            -config 'api.addrs.addr.name=.*' \
+            -host 127.0.0.1 \
+            -config api.key="${ZAP_API_KEY}" \
+            -config api.addrs.addr.name=.* \
             -config api.addrs.addr.enabled=true
 
       - name: Wait for ZAP API to be ready
         run: |
           echo "Waiting for ZAP daemon (up to 5 minutes)..."
-          sleep 15
-          for i in $(seq 1 57); do
-            if curl -sf "http://localhost:8090/JSON/core/view/version/?apikey=${ZAP_API_KEY}" > /dev/null 2>&1; then
-              echo "ZAP is ready after ~$((15 + i * 5))s"
+          sleep 30
+          for i in $(seq 1 54); do
+            if curl -sf --max-time 3 "http://127.0.0.1:8090/JSON/core/view/version/?apikey=${ZAP_API_KEY}" > /dev/null 2>&1; then
+              echo "ZAP is ready after ~$((30 + i * 5))s"
               exit 0
             fi
-            echo "Attempt $i/57 – retrying in 5s..."
+            STATUS=$(docker inspect -f '{{.State.Status}}' zap 2>/dev/null || echo "unknown")
+            echo "Attempt $i/54 – retrying in 5s... (container: $STATUS)"
             sleep 5
           done
+          echo "--- ZAP container logs ---"
+          docker logs zap || true
           echo "::error::ZAP daemon did not start in time" && exit 1
 
       - name: Install ZAP MCP and MCP SDK
@@ -195,4 +201,3 @@ jobs:
       - name: Stop ZAP daemon
         if: always()
         run: docker rm -f zap || true
-
