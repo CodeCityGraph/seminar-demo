@@ -5,6 +5,7 @@ on:
     branches:
       - dev
       - Main
+      - Joseph-Dev-Branck
   pull_request:
     branches:
       - Main
