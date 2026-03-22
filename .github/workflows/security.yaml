@@ -96,63 +96,78 @@ jobs:
           docker logs --tail 200 zap || true
           echo "::error::ZAP daemon did not start in time" && exit 1
 
-      - name: Install ZAP MCP and MCP SDK
-        run: npm install @zaproxy/zap-mcp @modelcontextprotocol/sdk
+      - name: Install scan script dependencies
+        run: npm install node-fetch@3
 
-      - name: Run ZAP MCP scan (spider + passive scan)
+      - name: Run ZAP API scan (spider + passive scan)
         run: |
           cat > zap-mcp-scan.cjs << 'SCRIPT'
-          const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
-          const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+          const fetch = global.fetch || ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
           const fs = require('fs');
 
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+          async function getJson(url) {
+            const res = await fetch(url);
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status} from ${url}`);
+            }
+            return await res.json();
+          }
+
           async function main() {
-            const transport = new StdioClientTransport({
-              command: 'node',
-              args: ['node_modules/@zaproxy/zap-mcp/dist/index.js'],
-              env: {
-                ...process.env,
-                ZAP_API_URL: process.env.ZAP_API_URL,
-                ZAP_API_KEY: process.env.ZAP_API_KEY,
-              },
-            });
+            const api = process.env.ZAP_API_URL;
+            const target = process.env.TARGET_URL;
 
-            const client = new Client({ name: 'ci-zap-mcp', version: '1.0.0' });
-            await client.connect(transport);
-            console.log('Connected to ZAP MCP server');
+            console.log(`Spidering ${target}...`);
+            const spiderStart = await getJson(`${api}/JSON/spider/action/scan/?url=${encodeURIComponent(target)}&maxChildren=10&recurse=true`);
+            const scanId = spiderStart.scan;
 
-            const { tools } = await client.listTools();
-            console.log('Available tools:', tools.map(t => t.name).join(', '));
+            let spiderStatus = '0';
+            for (let i = 0; i < 120; i++) {
+              const statusJson = await getJson(`${api}/JSON/spider/view/status/?scanId=${scanId}`);
+              spiderStatus = statusJson.status || '0';
+              if (Number(spiderStatus) >= 100) {
+                break;
+              }
+              if (i % 6 === 0) {
+                console.log(`Spider progress: ${spiderStatus}%`);
+              }
+              await sleep(2000);
+            }
+            console.log(`Spider finished with status ${spiderStatus}%`);
 
-            console.log(`Spidering ${process.env.TARGET_URL}...`);
-            const spiderResult = await client.callTool({
-              name: 'spider_url',
-              arguments: { url: process.env.TARGET_URL, maxChildren: 10 },
-            });
-            console.log('Spider complete');
+            // Give passive scanner time to process discovered URLs.
+            for (let i = 0; i < 30; i++) {
+              const pscan = await getJson(`${api}/JSON/pscan/view/recordsToScan/`);
+              const remaining = Number(pscan.recordsToScan || 0);
+              if (remaining <= 0) {
+                break;
+              }
+              if (i % 5 === 0) {
+                console.log(`Passive scan queue remaining: ${remaining}`);
+              }
+              await sleep(2000);
+            }
 
             console.log('Retrieving alerts...');
-            const alertsResult = await client.callTool({
-              name: 'get_alerts',
-              arguments: { baseurl: process.env.TARGET_URL },
-            });
+            const alertsJson = await getJson(`${api}/JSON/core/view/alerts/?baseurl=${encodeURIComponent(target)}&start=0&count=9999`);
+            const alerts = alertsJson.alerts || [];
 
             const report = {
-              target: process.env.TARGET_URL,
+              target,
               timestamp: new Date().toISOString(),
-              spider: spiderResult.content,
-              alerts: alertsResult.content,
+              spider: { status: spiderStatus },
+              alerts,
             };
 
             fs.writeFileSync('zap-mcp-report.json', JSON.stringify(report, null, 2));
-            const alertCount = Array.isArray(alertsResult.content) ? alertsResult.content.length : 'unknown';
+            const alertCount = Array.isArray(alerts) ? alerts.length : 'unknown';
             console.log(`Scan complete. ${alertCount} alerts written to zap-mcp-report.json`);
-
-            await client.close();
           }
 
           main().catch(e => {
-            console.error('ZAP MCP scan error:', e.message);
+            console.error('ZAP API scan error:', e.message);
             process.exit(1);
           });
           SCRIPT
@@ -183,7 +198,7 @@ jobs:
             console.log(JSON.stringify(top));
           ")
 
-          export PROMPT="You are a security expert. Below are the top findings from an OWASP ZAP MCP scan of a Node.js web app. For each finding, provide: 1) a plain-English explanation of the risk, 2) a concrete code-level fix specific to a Node.js/Express app. Be concise.\n\nFindings:\n$ALERTS"
+          export PROMPT="You are a security expert. Below are the top findings from an OWASP ZAP API scan of a Node.js web app. For each finding, provide: 1) a plain-English explanation of the risk, 2) a concrete code-level fix specific to a Node.js/Express app. Be concise.\n\nFindings:\n$ALERTS"
 
           RESPONSE=$(node -e "
             async function run() {
