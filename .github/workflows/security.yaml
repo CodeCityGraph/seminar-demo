@@ -174,6 +174,104 @@ jobs:
           node zap-mcp-scan.cjs
         continue-on-error: true
 
+      - name: Generate readable security report
+        if: always()
+        run: |
+          node -e "
+            const fs = require('fs');
+            const file = 'zap-mcp-report.json';
+            if (!fs.existsSync(file)) {
+              const msg = '# Security Report\n\nNo ZAP report was generated in this run.\n';
+              fs.writeFileSync('security-report.md', msg);
+              process.exit(0);
+            }
+
+            const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const alerts = Array.isArray(report.alerts) ? report.alerts : [];
+
+            const severityOrder = ['High', 'Medium', 'Low', 'Informational'];
+            const severityMap = {
+              high: 'High',
+              medium: 'Medium',
+              low: 'Low',
+              informational: 'Informational',
+              info: 'Informational'
+            };
+
+            const normalizeSeverity = (a) => {
+              const risk = String(a.risk || a.riskdesc || '').toLowerCase();
+              for (const key of Object.keys(severityMap)) {
+                if (risk.includes(key)) return severityMap[key];
+              }
+              const code = Number(a.riskcode ?? -1);
+              if (code === 3) return 'High';
+              if (code === 2) return 'Medium';
+              if (code === 1) return 'Low';
+              return 'Informational';
+            };
+
+            const bySeverity = {
+              High: [],
+              Medium: [],
+              Low: [],
+              Informational: []
+            };
+
+            for (const a of alerts) {
+              bySeverity[normalizeSeverity(a)].push(a);
+            }
+
+            const top = [...alerts]
+              .sort((a, b) => Number(b.riskcode || 0) - Number(a.riskcode || 0))
+              .slice(0, 20);
+
+            const lines = [];
+            lines.push('# Security Report');
+            lines.push('');
+            lines.push('## Scan Overview');
+            lines.push('');
+            lines.push('- Target: ' + (report.target || 'unknown'));
+            lines.push('- Timestamp: ' + (report.timestamp || new Date().toISOString()));
+            lines.push('- Total Findings: ' + alerts.length);
+            lines.push('');
+            lines.push('## Severity Breakdown');
+            lines.push('');
+            for (const sev of severityOrder) {
+              lines.push('- ' + sev + ': ' + bySeverity[sev].length);
+            }
+            lines.push('');
+            lines.push('## Top Findings');
+            lines.push('');
+
+            if (top.length === 0) {
+              lines.push('No findings detected.');
+            } else {
+              top.forEach((a, i) => {
+                const sev = normalizeSeverity(a);
+                lines.push('### ' + (i + 1) + '. ' + (a.alert || a.name || 'Unnamed finding'));
+                lines.push('- Severity: ' + sev);
+                if (a.url) lines.push('- URL: ' + a.url);
+                if (a.param) lines.push('- Parameter: ' + a.param);
+                if (a.desc) lines.push('- Description: ' + String(a.desc).replace(/\s+/g, ' ').trim());
+                if (a.solution) lines.push('- Recommended Fix: ' + String(a.solution).replace(/\s+/g, ' ').trim());
+                lines.push('');
+              });
+            }
+
+            lines.push('## Recommended Next Steps');
+            lines.push('');
+            lines.push('1. Prioritize High severity findings for immediate fixes.');
+            lines.push('2. Create issues for Medium findings and schedule remediation.');
+            lines.push('3. Re-run this workflow after fixes to verify reductions in findings.');
+            lines.push('');
+
+            fs.writeFileSync('security-report.md', lines.join('\n'));
+          "
+
+          echo "## Security Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat security-report.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: AI Remediation Analysis (Gemini)
         if: always() && env.GEMINI_API_KEY != ''
         env:
@@ -229,9 +327,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: zap-mcp-reports
-          path: zap-mcp-report.json
+          path: |
+            zap-mcp-report.json
+            security-report.md
           if-no-files-found: ignore
 
       - name: Stop ZAP daemon
         if: always()
         run: docker rm -f zap || true
+
