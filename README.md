@@ -11,6 +11,16 @@ npm run playwright:install
 npm run start:local
 ```
 
+## MongoDB Secrets (for login/signup)
+
+Set these environment variables in your deployment secrets (for example, Vercel project environment variables):
+
+- `MONGODB_URI` (required)
+- `MONGODB_DB` (optional, defaults to `seminar_demo`)
+- `MONGODB_USERS_COLLECTION` (optional, defaults to `users`)
+
+`/api/submit` uses MongoDB for `formType: "signup"` and `formType: "login"`.
+
 ## Generate + Run AI Tests (Fast Demo)
 
 ### Local model (recommended)

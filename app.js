@@ -253,6 +253,9 @@ if (loginForm) {
           const err = body && body.error ? body.error : 'Validation error (400)';
           if (loginMsg) loginMsg.textContent = 'Validation error (400)';
           showPopup('Validation Error. Please try again.');
+        } else if (resp.status === 401) {
+          if (loginMsg) loginMsg.textContent = 'Invalid email or password';
+          showPopup('Invalid email or password');
         } else if (resp.status === 404) {
           if (loginMsg) loginMsg.textContent = 'Not found (404)';
           showPopup('Not found (404)');
@@ -331,6 +334,9 @@ if (signupForm) {
           const err = body && body.error ? body.error : 'Validation error (400)';
           if (signupMsg) signupMsg.textContent = 'Validation error (400)';
           showPopup('Validation Error. Please try again.');
+        } else if (resp.status === 409) {
+          if (signupMsg) signupMsg.textContent = 'Account already exists';
+          showPopup('Account already exists');
         } else if (resp.status === 404) {
           if (signupMsg) signupMsg.textContent = 'Not found (404)';
           showPopup('Not found (404)');
