@@ -350,25 +350,25 @@ jobs:
         if: always()
         run: docker rm -f zap || true
 
-deploy-main-to-vercel:
-  if: github.ref == 'refs/heads/main'
-  runs-on: ubuntu-latest
-  permissions:
-    contents: read
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: npm
-
-    - name: Install Dependencies
-      run: npm ci
-
-    - name: Deploy main to Vercel (production)
-      run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
-      env:
-        VERCEL_ORG_ID: ${{ secrets.ORGID }}
-        VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
+  deploy-main-to-vercel:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+  
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+  
+      - name: Install Dependencies
+        run: npm ci
+  
+      - name: Deploy main to Vercel (production)
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.ORGID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECTID }}
