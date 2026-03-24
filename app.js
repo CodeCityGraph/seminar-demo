@@ -60,15 +60,15 @@ const saveTheme = (theme) => {
 
 setTheme(loadStoredTheme());
 
-if (themeToggle) {
-  themeToggle.addEventListener('click', () => {
-    const root = document.documentElement;
-    const isDark = root.classList.toggle('dark');
-    const nextTheme = isDark ? 'dark' : 'light';
-    themeToggle.setAttribute('aria-pressed', String(isDark));
-    saveTheme(nextTheme);
-  });
-}
+// if (themeToggle) {
+//   themeToggle.addEventListener('click', () => {
+//     const root = document.documentElement;
+//     const isDark = root.classList.toggle('dark');
+//     const nextTheme = isDark ? 'dark' : 'light';
+//     themeToggle.setAttribute('aria-pressed', String(isDark));
+//     saveTheme(nextTheme);
+//   });
+// }
 
 // Simple modal popup utility
 function showPopup(message, timeout = 2500) {
