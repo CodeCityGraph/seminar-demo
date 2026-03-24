@@ -68,7 +68,7 @@ setTheme(loadStoredTheme());
 //     themeToggle.setAttribute('aria-pressed', String(isDark));
 //     saveTheme(nextTheme);
 //   });
-// }
+// }/
 
 // Simple modal popup utility
 function showPopup(message, timeout = 2500) {
