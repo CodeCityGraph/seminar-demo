@@ -1,10 +1,18 @@
 const http = require('http');
+const { randomBytes, scryptSync, timingSafeEqual } = require('crypto');
 const fs = require('fs');
+const { MongoClient } = require('mongodb');
 const path = require('path');
 const url = require('url');
 
 const PORT = Number(process.env.PORT || 3000);
 const STATIC_DIR = path.resolve(process.env.STATIC_DIR || process.cwd());
+const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB || 'seminar_demo';
+const USERS_COLLECTION = process.env.MONGODB_USERS_COLLECTION || 'users';
+
+let cachedClient;
+let cachedDb;
 
 const isAlpha = (s) => typeof s === 'string' && /^[A-Za-z]+$/.test(s);
 const isValidEmail = (em) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em || '');
@@ -16,17 +24,91 @@ const isValidPassword = (pw) =>
   /[A-Z]/.test(pw) &&
   /[^A-Za-z0-9]/.test(pw);
 
-function validatePayload(parsed) {
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
+const toPasswordHash = (password) => {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+};
+
+const isPasswordMatch = (password, storedHash) => {
+  if (typeof storedHash !== 'string' || !storedHash.includes(':')) {
+    return false;
+  }
+
+  const [salt, hashHex] = storedHash.split(':');
+  const candidate = scryptSync(password, salt, 64).toString('hex');
+  const hashBuf = Buffer.from(hashHex, 'hex');
+  const candidateBuf = Buffer.from(candidate, 'hex');
+
+  if (hashBuf.length !== candidateBuf.length) {
+    return false;
+  }
+
+  return timingSafeEqual(hashBuf, candidateBuf);
+};
+
+async function getUsersCollection() {
+  if (!MONGODB_URI) {
+    return null;
+  }
+
+  if (!cachedDb) {
+    const client = cachedClient || new MongoClient(MONGODB_URI);
+    try {
+      await client.connect();
+      cachedClient = client;
+      cachedDb = client.db(MONGODB_DB);
+    } catch (err) {
+      cachedClient = undefined;
+      cachedDb = undefined;
+      throw err;
+    }
+  }
+
+  const users = cachedDb.collection(USERS_COLLECTION);
+  await users.createIndex({ emailLower: 1 }, { unique: true });
+  return users;
+}
+
+async function validatePayload(parsed) {
   const formType = parsed.formType || 'contact';
+  const emailLower = normalizeEmail(parsed.email);
 
   if (formType === 'login') {
     if (!isValidEmail(parsed.email)) return { ok: false, code: 400, error: 'invalid email' };
     if (!isValidPassword(parsed.password)) return { ok: false, code: 400, error: 'invalid password' };
+
+    const users = await getUsersCollection();
+    if (users) {
+      const existingUser = await users.findOne({ emailLower });
+      if (!existingUser || !isPasswordMatch(parsed.password, existingUser.passwordHash)) {
+        return { ok: false, code: 401, error: 'invalid credentials' };
+      }
+    }
   } else if (formType === 'signup') {
     if (!isAlpha(parsed.firstName)) return { ok: false, code: 400, error: 'invalid first name' };
     if (!isAlpha(parsed.lastName)) return { ok: false, code: 400, error: 'invalid last name' };
     if (!isValidEmail(parsed.email)) return { ok: false, code: 400, error: 'invalid email' };
     if (!isValidPassword(parsed.password)) return { ok: false, code: 400, error: 'invalid password' };
+
+    const users = await getUsersCollection();
+    if (users) {
+      try {
+        await users.insertOne({
+          firstName: parsed.firstName,
+          lastName: parsed.lastName,
+          email: parsed.email,
+          emailLower,
+          passwordHash: toPasswordHash(parsed.password),
+          createdAt: new Date(),
+        });
+      } catch (err) {
+        if (err && err.code === 11000) return { ok: false, code: 409, error: 'user already exists' };
+        throw err;
+      }
+    }
   } else {
     if (!isAlpha(parsed.firstName)) return { ok: false, code: 400, error: 'invalid first name' };
     if (!isAlpha(parsed.lastName)) return { ok: false, code: 400, error: 'invalid last name' };
@@ -111,12 +193,18 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      const result = validatePayload(payload);
-      if (!result.ok) {
-        sendJson(res, result.code, { error: result.error });
-        return;
-      }
-      sendJson(res, 200, result.body);
+      validatePayload(payload)
+        .then((result) => {
+          if (!result.ok) {
+            sendJson(res, result.code, { error: result.error });
+            return;
+          }
+          sendJson(res, 200, result.body);
+        })
+        .catch((err) => {
+          console.error('mock submit handler error', err);
+          sendJson(res, 500, { error: 'server error' });
+        });
     });
     return;
   }
